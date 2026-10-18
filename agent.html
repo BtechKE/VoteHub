@@ -604,8 +604,19 @@ function clearDraft(code, pos) { localStorage.removeItem(draftKey(code, pos)); }
 function confirmSubmit() {
   var votes = collectVotes();
   var total = votes.reduce((s, v) => s + v.votes, 0);
+  
+  // Format the stream number with leading zeros
+  var num = currentStream.streamNumber < 10 ? '0' + currentStream.streamNumber : currentStream.streamNumber;
+  var streamLabel = currentStream.centreName + ' · STR ' + num;
+
   document.getElementById('confirmTitle').textContent = 'Lock ' + currentPosition + '?';
-  document.getElementById('confirmBody').innerHTML = 'Stream: <strong>' + esc(currentStream.centreName) + '</strong><br>Total votes: <strong>' + total + '</strong><div class="warn-line"><i class="fas fa-lock"></i> Cannot be changed.</div>';
+  
+  // Update the HTML to match the GAS version exactly
+  document.getElementById('confirmBody').innerHTML = 
+    'Stream: <strong>' + esc(streamLabel) + '</strong><br>' +
+    'Total votes: <strong>' + total + '</strong>' +
+    '<div class="warn-line"><i class="fas fa-lock"></i> This cannot be changed after submitting.</div>';
+    
   document.getElementById('confirmModal').classList.add('active');
 }
 function closeConfirm() { document.getElementById('confirmModal').classList.remove('active'); }
