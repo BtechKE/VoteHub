@@ -493,14 +493,31 @@ function goToPositions(streamCode) {
   document.getElementById('posStreamCode').textContent = currentStream.code;
   
   var statuses = STATUSES[currentStream.code] || {};
+  
   document.getElementById('positionList').innerHTML = POSITIONS.map(pos => {
     var hit = statuses[pos] || { status: 'pending' };
     var isSubmitted = hit.status === 'submitted';
-    var cls = isSubmitted ? 'submitted' : 'pending';
-    var metaHtml = isSubmitted 
-        ? '<div class="position-meta"><i class="fas fa-check-circle" style="color:var(--success);"></i> Submitted</div>'
-        : '<div class="position-meta"><i class="fas fa-pen" style="color:var(--warning);"></i> Tap to enter results</div>';
-    var onclick = isSubmitted ? 'goToReadonly(\'' + currentStream.code + '\',\'' + pos + '\')' : 'goToEntry(\'' + currentStream.code + '\',\'' + pos + '\')';
+    
+    // NEW LOGIC: Check if submission is closed AND it hasn't been submitted yet
+    var isLocked = !isSubmitted && !SUBMISSION_OPEN;
+
+    var cls = isSubmitted ? 'submitted' : (isLocked ? 'locked' : 'pending');
+    
+    var metaHtml = '';
+    if (isSubmitted) {
+      metaHtml = '<div class="position-meta"><i class="fas fa-check-circle" style="color:var(--success);"></i> Submitted</div>';
+    } else if (isLocked) {
+      metaHtml = '<div class="position-meta"><i class="fas fa-lock"></i> Submission closed</div>';
+    } else {
+      metaHtml = '<div class="position-meta"><i class="fas fa-pen" style="color:var(--warning);"></i> Tap to enter results</div>';
+    }
+
+    // NEW LOGIC: Prevent clicking if it is locked
+    var onclick = isSubmitted 
+        ? 'goToReadonly(\'' + currentStream.code + '\',\'' + pos + '\')' 
+        : (isLocked 
+            ? 'toast(\'Submission is currently closed.\', \'error\')' 
+            : 'goToEntry(\'' + currentStream.code + '\',\'' + pos + '\')');
     
     return '<div class="position-card ' + cls + '" onclick="' + onclick + '">' +
       '<div class="position-icon"><i class="fas ' + (POSITION_ICONS[pos] || 'fa-user') + '"></i></div>' +
