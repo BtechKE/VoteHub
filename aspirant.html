@@ -12,16 +12,16 @@
 
   <style>
     /* ============================================================
-       YOUR EXACT CSS IS PASTED HERE (Untouched)
+       YOUR EXACT CSS (Auroras, Glass Cards, Mobile Responsive)
     ============================================================ */
     :root {
-      --blue:      #1591DC; --blue-soft: rgba(21, 145, 220, 0.12); --blue-glow: rgba(21, 145, 220, 0.35);
-      --green:      #A5CF83; --green-soft: rgba(165, 207, 131, 0.15); --green-dark: #7EAE5C;
-      --slate:      #435663; --slate-soft: rgba(67, 86, 99, 0.10);
-      --ink:        #1A1A19; --ink-2: #2A2A28; --canvas: #F0F0F0; --surface: #FFFFFF;
-      --danger:     #C4453A; --danger-soft:rgba(196, 69, 58, 0.10);
-      --border:     rgba(26, 26, 25, 0.08); --border-2: rgba(26, 26, 25, 0.14);
-      --radius:     16px; --radius-lg: 22px; --topbar-h: 60px; --tabs-h: 56px;
+      --blue: #1591DC; --blue-soft: rgba(21, 145, 220, 0.12); --blue-glow: rgba(21, 145, 220, 0.35);
+      --green: #A5CF83; --green-soft: rgba(165, 207, 131, 0.15); --green-dark: #7EAE5C;
+      --slate: #435663; --slate-soft: rgba(67, 86, 99, 0.10);
+      --ink: #1A1A19; --ink-2: #2A2A28; --canvas: #F0F0F0; --surface: #FFFFFF;
+      --danger: #C4453A; --danger-soft:rgba(196, 69, 58, 0.10);
+      --border: rgba(26, 26, 25, 0.08); --border-2: rgba(26, 26, 25, 0.14);
+      --radius: 16px; --radius-lg: 22px; --topbar-h: 60px; --tabs-h: 56px;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body { overscroll-behavior-y: contain; }
@@ -189,7 +189,7 @@
     .cmp-votes { font-size: 26px; font-weight: 800; letter-spacing: -0.8px; line-height: 1; font-variant-numeric: tabular-nums; }
     .cmp-pct { font-size: 12.5px; color: var(--slate); font-weight: 600; margin-top: 4px; }
 
-    /* UI KIT — Modals, toasts, buttons (shared) */
+    /* UI KIT */
     .th-modal-bg { position: fixed; inset: 0; background: rgba(26, 26, 25, 0.5); display: none; align-items: center; justify-content: center; z-index: 10000; padding: 20px; opacity: 0; transition: opacity 0.18s ease; }
     .th-modal-bg.active { display: flex; opacity: 1; }
     .th-modal { background: var(--surface); border-radius: 20px; padding: 26px 24px 22px; width: 100%; max-width: 380px; box-shadow: 0 24px 72px rgba(26, 26, 25, 0.3); transform: scale(0.94) translateY(8px); transition: transform 0.22s cubic-bezier(0.34, 1.4, 0.64, 1); }
@@ -242,9 +242,7 @@
       .grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
     }
 
-    /* ================================================================
-       VIEW TABS (Results / Tracker)
-    ============================================================ */
+    /* VIEW TABS */
     .viewtabs { background: var(--surface); border-bottom: 1px solid var(--border); display: flex; gap: 4px; padding: 8px 12px; overflow-x: auto; scrollbar-width: none; position: relative; z-index: 1; }
     .viewtabs::-webkit-scrollbar { display: none; }
     .viewtab { padding: 9px 16px; border-radius: 20px; background: var(--canvas); border: none; color: var(--slate); font-size: 13.5px; font-weight: 600; font-family: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; transition: background-color 0.15s, color 0.15s; flex-shrink: 0; }
@@ -295,7 +293,6 @@
 
     /* ================================================================
        ASPIRANT — COLOUR SIGNALS LAYER
-       Green = votes · Blue = share · Red = margin
     ============================================================ */
     .hero-stat-num:nth-child(1) { color: var(--green); } .hero-stat-num:nth-child(2) { color: var(--blue); } .hero-stat-num:nth-child(3) { color: #E8534A; }
     .hero.other .hero-stat-num:nth-child(1) { color: var(--green-dark); } .hero.other .hero-stat-num:nth-child(2) { color: var(--blue); } .hero.other .hero-stat-num:nth-child(3) { color: #C4453A; }
@@ -526,79 +523,82 @@ const supabaseKey = 'sb_publishable_eaKzqM_sDHvW9UOCvLkOqQ_QcL9nS2M'; // <-- PAS
 const db = window.supabase.createClient(supabaseUrl, supabaseKey);
 
 // ================================================================
-//  CONSTANTS
+//  CONSTANTS & STATE
 // ================================================================
-var USER = null;
-var TOKEN = "supabase";
-var OVERVIEW = null;
-var VIEW_POS = 'President';
-var CURRENT_VIEW = 'results';
-
-var DRILL_WARD = ''; var DRILL_WARD_NAME = '';
-var DRILL_CENTRE = ''; var DRILL_CENTRE_NAME = '';
-var DRILL_DATA = null;
-
-var TRACKER_DATA = null;
-var TRACKER_WARD = ''; var TRACKER_WARD_NAME = '';
+var USER = null; var TOKEN = "supabase"; var OVERVIEW = null; var VIEW_POS = 'President';
+var CURRENT_VIEW = 'results'; var DRILL_WARD = ''; var DRILL_WARD_NAME = '';
+var DRILL_CENTRE = ''; var DRILL_CENTRE_NAME = ''; var DRILL_DATA = null;
+var TRACKER_DATA = null; var TRACKER_WARD = ''; var TRACKER_WARD_NAME = '';
 var TRACKER_CENTRE = ''; var TRACKER_CENTRE_NAME = '';
-
 var refreshTimer = null; var trackerRefreshAt = null; var lastRefreshAt = null;
-
 const POSITIONS = ['President', 'Governor', 'Senator', 'MP', 'Women Rep', 'MCA'];
 var POSITION_SHORT = { 'President': 'P', 'Governor': 'G', 'Senator': 'S', 'MP': 'M', 'Women Rep': 'W', 'MCA': 'C' };
 
 // ================================================================
-//  INIT & AUTH
+//  INIT & AUTO REFRESH
 // ================================================================
 async function init() {
   const { data: { user } } = await db.auth.getUser();
   if (!user) { window.location.href = 'index.html'; return; }
 
-  // Fetch profile from Supabase
   const { data: profile } = await db.from('aspirants').select('*').eq('auth_user_id', user.id).single();
-  if (!profile) { alert("Profile not found"); logout(); return; }
+  if (!profile) { alert("Profile not found"); doLogout(); return; }
   
-  // Map DB profile to USER object (matching your original GAS schema)
   USER = {
-    name: profile.name,
-    position: profile.position,
-    ward: profile.ward_id,
-    loginCode: profile.login_code,
-    isSpectator: profile.is_spectator
+    name: profile.name, position: profile.position, ward: profile.ward_id,
+    loginCode: profile.login_code, isSpectator: profile.is_spectator
   };
 
   document.getElementById('topName').textContent = USER.name || 'Viewer';
   updateTopMeta();
-
-  if (!USER.isSpectator && USER.position && POSITIONS.indexOf(USER.position) !== -1) {
-    VIEW_POS = USER.position;
-  }
+  if (!USER.isSpectator && USER.position && POSITIONS.indexOf(USER.position) !== -1) { VIEW_POS = USER.position; }
 
   loadOverview();
   startAutoRefresh();
 }
 
+function startAutoRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(function () {
+    if (document.hidden) return;
+    if (CURRENT_VIEW === 'results') {
+      if (DRILL_WARD || DRILL_CENTRE) return;
+      if (lastRefreshAt && Date.now() - lastRefreshAt < 4.5 * 60 * 1000) return;
+      silentRefresh();
+    } else if (CURRENT_VIEW === 'tracker') {
+      if (trackerRefreshAt && Date.now() - trackerRefreshAt < 80 * 1000) return;
+      loadTracker(true);
+    }
+  }, 30000);
+}
+
+function silentRefresh() { setPulse('loading'); loadOverview(true); }
+
+function manualRefresh() {
+  var icon = document.getElementById('topRefreshIcon');
+  if (icon) icon.classList.add('spin');
+  setPulse('loading');
+  if (CURRENT_VIEW === 'tracker') { loadTracker(true); }
+  else if (DRILL_WARD || DRILL_CENTRE) { loadDrill(true); }
+  else { loadOverview(true); }
+  if (icon) setTimeout(function () { icon.classList.remove('spin'); }, 900);
+}
+
 // ================================================================
-//  DATA LOADING — SUPABASE
+//  DATA LOADING (Supabase)
 // ================================================================
 async function loadOverview(silent) {
   if (!silent) setPulse('loading');
   try {
-    // 1. Fetch all necessary data in parallel
     const [ { data: cands }, { data: candTotals }, { data: wardRes }, { data: wardsData }, { data: streamsData }, { data: resultsData } ] = await Promise.all([
-        db.from('candidates').select('*'),
-        db.from('candidate_totals').select('*'),
-        db.from('ward_results').select('*'),
-        db.from('wards').select('*').order('name'),
-        db.from('streams').select('code, ward_id'),
-        db.from('results').select('stream_code')
+        db.from('candidates').select('*'), db.from('candidate_totals').select('*'),
+        db.from('ward_results').select('*'), db.from('wards').select('*').order('name'),
+        db.from('streams').select('code, ward_id'), db.from('results').select('stream_code')
     ]);
 
-    // 2. Build maps
     const candMap = {}; cands.forEach(c => candMap[c.code] = c);
     const totalMap = {}; candTotals.forEach(ct => totalMap[ct.candidate_code] = ct.total_votes);
 
-    // 3. Build leaderboard for all positions
     let leaderboardByPos = {}; POSITIONS.forEach(p => leaderboardByPos[p] = []);
     cands.forEach(c => {
         const votes = totalMap[c.code] || 0;
@@ -607,7 +607,6 @@ async function loadOverview(silent) {
         });
     });
 
-    // 4. Calculate totals and percentages
     let tabTotals = {};
     for (let p in leaderboardByPos) {
         const list = leaderboardByPos[p].sort((a, b) => b.votes - a.votes);
@@ -616,30 +615,21 @@ async function loadOverview(silent) {
         list.forEach(item => { item.pct = total > 0 ? ((item.votes / total) * 100).toFixed(1) : '0.0'; });
     }
 
-    // 5. Build Ward Data
     let formattedWards = wardsData.map(w => {
         const wStreams = streamsData.filter(s => s.ward_id === w.id);
         const wStreamCodes = new Set(wStreams.map(s => s.code));
         const reportedInWard = new Set(resultsData.filter(r => wStreamCodes.has(r.stream_code)).map(r => r.stream_code)).size;
 
-        const wCandidates = wardRes.filter(wr => wr.ward_id === w.id && wr.position === VIEW_POS)
-            .map(wr => {
+        const wCandidates = wardRes.filter(wr => wr.ward_id === w.id && wr.position === VIEW_POS).map(wr => {
                 const c = candMap[wr.candidate_code] || {};
                 return { code: wr.candidate_code, name: c.name, party: c.party, photo: c.photo_url, color: c.color || '#A5CF83', votes: wr.total_votes };
             }).sort((a, b) => b.votes - a.votes);
 
         const wTotal = wCandidates.reduce((sum, c) => sum + c.votes, 0);
         const wLeader = wCandidates[0] || null;
-
-        return {
-            wardId: w.id, wardName: w.name, candidates: wCandidates,
-            leader: wLeader, totalVotes: wTotal,
-            leaderPct: wTotal > 0 && wLeader ? ((wLeader.votes / wTotal) * 100).toFixed(1) : '0.0',
-            streamsTotal: wStreams.length, streamsDone: reportedInWard
-        };
+        return { wardId: w.id, wardName: w.name, candidates: wCandidates, leader: wLeader, totalVotes: wTotal, leaderPct: wTotal > 0 && wLeader ? ((wLeader.votes / wTotal) * 100).toFixed(1) : '0.0', streamsTotal: wStreams.length, streamsDone: reportedInWard };
     });
 
-    // 6. Build OVERVIEW object
     const currentList = leaderboardByPos[VIEW_POS] || [];
     const globalTotal = tabTotals[VIEW_POS] || 0;
     
@@ -654,40 +644,26 @@ async function loadOverview(silent) {
     const margin = (leader && runner) ? (leader.votes - runner.votes) : (leader ? leader.votes : 0);
 
     OVERVIEW = {
-        viewingPosition: VIEW_POS,
-        leaderboard: currentList, globalTotal, ownRow, ownRank, leader, runner, margin,
-        tabTotals, wards: formattedWards,
-        reported: new Set(resultsData.map(r => r.stream_code)).size,
-        totalStreams: streamsData.length,
-        ownPhoto: ownRow ? ownRow.photo : ''
+        viewingPosition: VIEW_POS, leaderboard: currentList, globalTotal, ownRow, ownRank, leader, runner, margin,
+        tabTotals, wards: formattedWards, reported: new Set(resultsData.map(r => r.stream_code)).size,
+        totalStreams: streamsData.length, ownPhoto: ownRow ? ownRow.photo : ''
     };
 
-    // 7. Render
     lastRefreshAt = Date.now();
-    updateTopMeta();
-    renderTabs();
-    renderHero();
-    renderDrillGrid();
-    renderBoard();
+    updateTopMeta(); renderTabs(); renderHero(); renderDrillGrid(); renderBoard();
     setPulse('live');
-    
     document.getElementById('footTime').textContent = 'Updated ' + new Date().toLocaleTimeString();
     saveSnapshot(VIEW_POS, currentList);
-
   } catch (err) {
-    console.error(err);
-    setPulse('stale');
-    if (!silent) toast('Connection error.', 'error');
+    console.error(err); setPulse('stale'); if (!silent) toast('Connection error.', 'error');
   }
 }
 
 async function loadDrill(silent) {
   try {
     const [ { data: cands }, { data: streamsData }, { data: centresData }, { data: resultsData } ] = await Promise.all([
-        db.from('candidates').select('*'),
-        db.from('streams').select('*'),
-        db.from('centres').select('*'),
-        db.from('results').select('*').eq('position', VIEW_POS)
+        db.from('candidates').select('*'), db.from('streams').select('*'),
+        db.from('centres').select('*'), db.from('results').select('*').eq('position', VIEW_POS)
     ]);
 
     const candMap = {}; cands.forEach(c => candMap[c.code] = c);
@@ -695,69 +671,44 @@ async function loadDrill(silent) {
 
     if (DRILL_CENTRE) {
         const centreStreams = streamsData.filter(s => s.centre_id === DRILL_CENTRE);
-        const streamList = centreStreams.map(s => {
+        DRILL_DATA = { level: 'stream', streams: centreStreams.map(s => {
             const sResults = resultsData.filter(r => r.stream_code === s.code);
             const sCandidates = sResults.map(r => {
                 const info = candMap[r.candidate_code] || {};
                 return { code: r.candidate_code, name: info.name, party: info.party, photo: info.photo_url, color: info.color || '#A5CF83', votes: r.votes };
             }).sort((a, b) => b.votes - a.votes);
-            
             const total = sCandidates.reduce((sum, c) => sum + c.votes, 0);
-            return {
-                streamCode: s.code, streamLabel: 'STR ' + String(s.stream_number).padStart(2, '0'),
-                centreName: centresData.find(c => c.id === s.centre_id)?.name,
-                candidates: sCandidates, leader: sCandidates[0] || null, totalVotes: total,
-                leaderPct: total > 0 && sCandidates[0] ? ((sCandidates[0].votes / total) * 100).toFixed(1) : '0.0',
-                submitted: reportedSet.has(s.code)
-            };
-        }).sort((a, b) => a.streamCode.localeCompare(b.streamCode));
-        DRILL_DATA = { level: 'stream', streams: streamList };
+            return { streamCode: s.code, streamLabel: 'STR ' + String(s.stream_number).padStart(2, '0'), centreName: centresData.find(c => c.id === s.centre_id)?.name, candidates: sCandidates, leader: sCandidates[0] || null, totalVotes: total, leaderPct: total > 0 && sCandidates[0] ? ((sCandidates[0].votes / total) * 100).toFixed(1) : '0.0', submitted: reportedSet.has(s.code) };
+        }).sort((a, b) => a.streamCode.localeCompare(b.streamCode)) };
     } else if (DRILL_WARD) {
         const wardCentres = centresData.filter(c => c.ward_id === DRILL_WARD);
-        const centreList = wardCentres.map(c => {
+        DRILL_DATA = { level: 'centre', centres: wardCentres.map(c => {
             const cStreams = streamsData.filter(s => s.centre_id === c.id);
             const cStreamCodes = new Set(cStreams.map(s => s.code));
             const reportedInCentre = new Set(resultsData.filter(r => cStreamCodes.has(r.stream_code)).map(r => r.stream_code)).size;
-
-            // Aggregate candidate totals for this centre
             const cCandidatesMap = {};
             resultsData.filter(r => cStreamCodes.has(r.stream_code)).forEach(r => {
                 if (!cCandidatesMap[r.candidate_code]) cCandidatesMap[r.candidate_code] = { code: r.candidate_code, votes: 0 };
                 cCandidatesMap[r.candidate_code].votes += r.votes;
             });
-            
             const cCandidates = Object.values(cCandidatesMap).map(item => {
                 const info = candMap[item.code] || {};
                 return { ...item, name: info.name, party: info.party, photo: info.photo_url, color: info.color || '#A5CF83' };
             }).sort((a, b) => b.votes - a.votes);
-            
             const total = cCandidates.reduce((sum, x) => sum + x.votes, 0);
-            return {
-                centreId: c.id, centreName: c.name,
-                candidates: cCandidates, leader: cCandidates[0] || null, totalVotes: total,
-                leaderPct: total > 0 && cCandidates[0] ? ((cCandidates[0].votes / total) * 100).toFixed(1) : '0.0',
-                streamsTotal: cStreams.length, streamsDone: reportedInCentre
-            };
-        });
-        DRILL_DATA = { level: 'centre', centres: centreList };
+            return { centreId: c.id, centreName: c.name, candidates: cCandidates, leader: cCandidates[0] || null, totalVotes: total, leaderPct: total > 0 && cCandidates[0] ? ((cCandidates[0].votes / total) * 100).toFixed(1) : '0.0', streamsTotal: cStreams.length, streamsDone: reportedInCentre };
+        }) };
     }
-    
-    renderDrillGrid();
-    renderBoard();
-  } catch (err) {
-    console.error(err);
-  }
+    renderDrillGrid(); renderBoard();
+  } catch (err) { console.error(err); }
 }
 
 async function loadTracker(silent) {
   if (!silent) document.getElementById('trackerGrid').innerHTML = '<div class="load" style="grid-column:1/-1;"><i class="fas fa-spinner"></i>Loading…</div>';
-  
   try {
     const [ { data: wardsData }, { data: centresData }, { data: streamsData }, { data: resultsData } ] = await Promise.all([
-        db.from('wards').select('*').order('name'),
-        db.from('centres').select('*'),
-        db.from('streams').select('*'),
-        db.from('results').select('stream_code, position')
+        db.from('wards').select('*').order('name'), db.from('centres').select('*'),
+        db.from('streams').select('*'), db.from('results').select('stream_code, position')
     ]);
 
     const reportedMap = {};
@@ -784,10 +735,7 @@ async function loadTracker(silent) {
                 const isComplete = done === POSITIONS.length;
                 if (isComplete) cStreamsComplete++;
                 cCellsDone += done;
-                return {
-                    code: s.code, label: 'STR ' + String(s.stream_number).padStart(2, '0'),
-                    pips: pips, done: done, total: POSITIONS.length, isComplete: isComplete
-                };
+                return { code: s.code, label: 'STR ' + String(s.stream_number).padStart(2, '0'), pips: pips, done: done, total: POSITIONS.length, isComplete: isComplete };
             });
 
             wStreamsTotal += cStreamsTotal; wStreamsComplete += cStreamsComplete; wCellsDone += cCellsDone; wCellsTotal += cCellsTotal;
@@ -799,29 +747,21 @@ async function loadTracker(silent) {
     });
 
     TRACKER_DATA = {
-        isMCA: (!USER.isSpectator && USER.position === 'MCA'),
-        scopedWardName: USER.ward || '',
-        positions: POSITIONS,
-        wards: trackerWards,
-        summary: {
-            totalStreams: streamsData.length, completeStreams: totalCompleteStreams, pendingStreams: streamsData.length - totalCompleteStreams,
-            cellsDone: resultsData.length, cellsTotal: streamsData.length * POSITIONS.length,
-            staleCount: 0, lastSubmitAt: null
-        }
+        isMCA: (!USER.isSpectator && USER.position === 'MCA'), scopedWardName: USER.ward || '',
+        positions: POSITIONS, wards: trackerWards,
+        summary: { totalStreams: streamsData.length, completeStreams: totalCompleteStreams, pendingStreams: streamsData.length - totalCompleteStreams, cellsDone: resultsData.length, cellsTotal: streamsData.length * POSITIONS.length, staleCount: 0, lastSubmitAt: null }
     };
     renderTracker();
   } catch (err) {
-    console.error(err);
-    if (!silent) toast('Connection error.', 'error');
+    console.error(err); if (!silent) toast('Connection error.', 'error');
   }
 }
 
 // ================================================================
-//  ALL YOUR UI RENDERING FUNCTIONS (Untouched)
+//  RENDERING — TABS & HERO
 // ================================================================
 function updateTopMeta() {
-  var topMeta = document.getElementById('topMeta');
-  if (!topMeta) return;
+  var topMeta = document.getElementById('topMeta'); if (!topMeta) return;
   var label = USER.isSpectator ? 'Observer' : (USER.position || 'Viewer');
   var wardName = '';
   if (USER.ward) {
@@ -831,31 +771,24 @@ function updateTopMeta() {
     }
     if (!wardName) wardName = USER.ward;
   }
-  var parts = [label];
-  if (wardName) parts.push(wardName);
-  if (USER.loginCode) parts.push(USER.loginCode);
+  var parts = [label]; if (wardName) parts.push(wardName); if (USER.loginCode) parts.push(USER.loginCode);
   topMeta.textContent = parts.join(' · ');
 }
 
 function renderTabs() {
-  var el = document.getElementById('posTabs');
-  if (!OVERVIEW) return;
+  var el = document.getElementById('posTabs'); if (!OVERVIEW) return;
   var ownPos = (!USER.isSpectator && USER.position) ? USER.position : '';
   var mcaContested = (OVERVIEW.wards || []).filter(function (w) { return w.candidates && w.candidates.length > 0; }).length;
-
   el.innerHTML = POSITIONS.map(function (p) {
     var cls = 'postab' + (p === VIEW_POS ? ' active' : '') + (p === ownPos ? ' mine' : '');
     var pillText = (p === 'MCA') ? mcaContested + ' ward' + (mcaContested === 1 ? '' : 's') : ((OVERVIEW.tabTotals && OVERVIEW.tabTotals[p]) || 0).toLocaleString();
-    return '<button class="' + cls + '" data-pos="' + escAttr(p) + '" onclick="switchPosition(\'' + escAttr(p) + '\')">' +
-      esc(p) + '<span class="pill">' + pillText + '</span>' +
-    '</button>';
+    return '<button class="' + cls + '" data-pos="' + escAttr(p) + '" onclick="switchPosition(\'' + escAttr(p) + '\')">' + esc(p) + '<span class="pill">' + pillText + '</span></button>';
   }).join('');
 }
 
 function switchPosition(pos) {
   if (pos === VIEW_POS) return;
-  VIEW_POS = pos;
-  DRILL_WARD = ''; DRILL_WARD_NAME = ''; DRILL_CENTRE = ''; DRILL_CENTRE_NAME = ''; DRILL_DATA = null;
+  VIEW_POS = pos; DRILL_WARD = ''; DRILL_WARD_NAME = ''; DRILL_CENTRE = ''; DRILL_CENTRE_NAME = ''; DRILL_DATA = null;
   renderTabs();
   document.getElementById('heroCard').innerHTML = '<div class="hero-inner"><div class="load" style="color:#F0F0F0;"><i class="fas fa-spinner" style="color:#A5CF83;"></i>Loading…</div></div>';
   document.getElementById('drillGrid').innerHTML = '<div class="load" style="grid-column:1/-1;"><i class="fas fa-spinner"></i>Loading…</div>';
@@ -864,8 +797,7 @@ function switchPosition(pos) {
 
 function renderHero() {
   if (!OVERVIEW) return;
-  var el = document.getElementById('heroCard');
-  var liveText = timeAgo(lastRefreshAt);
+  var el = document.getElementById('heroCard'); var liveText = timeAgo(lastRefreshAt);
 
   if (OVERVIEW.viewingPosition === 'MCA') {
     if (DRILL_WARD) {
@@ -874,14 +806,8 @@ function renderHero() {
       var focusScope = ward; var focusScopeLabel = ward.wardName + ' Ward';
       if (DRILL_CENTRE && DRILL_DATA && DRILL_DATA.level === 'stream') {
         var centreCandidates = {};
-        (DRILL_DATA.streams || []).forEach(function (s) {
-          (s.candidates || []).forEach(function (c) {
-            if (!centreCandidates[c.code]) { centreCandidates[c.code] = { code: c.code, name: c.name, party: c.party, photo: c.photo || '', votes: 0 }; }
-            centreCandidates[c.code].votes += c.votes;
-          });
-        });
-        var arr = Object.keys(centreCandidates).map(function (k) { return centreCandidates[k]; });
-        arr.sort(function (x, y) { return y.votes - x.votes; });
+        (DRILL_DATA.streams || []).forEach(function (s) { (s.candidates || []).forEach(function (c) { if (!centreCandidates[c.code]) { centreCandidates[c.code] = { code: c.code, name: c.name, party: c.party, photo: c.photo || '', votes: 0 }; } centreCandidates[c.code].votes += c.votes; }); });
+        var arr = Object.keys(centreCandidates).map(function (k) { return centreCandidates[k]; }); arr.sort(function (x, y) { return y.votes - x.votes; });
         var totalC = arr.reduce(function (s, c) { return s + c.votes; }, 0);
         if (arr.length) {
           focusScope = { wardName: DRILL_CENTRE_NAME, candidates: arr, totalVotes: totalC, leader: arr[0], leaderPct: totalC > 0 ? (arr[0].votes / totalC * 100).toFixed(1) : '0.0', streamsDone: (DRILL_DATA.streams || []).filter(function (s) { return s.submitted; }).length, streamsTotal: (DRILL_DATA.streams || []).length };
@@ -906,8 +832,7 @@ function renderHero() {
         var theirRow = ownWard.candidates.filter(function (c) { return String(c.name).toLowerCase().trim() === String(USER.name).toLowerCase().trim(); })[0];
         var rk = theirRow ? ownWard.candidates.indexOf(theirRow) + 1 : null;
         var isLeading = rk === 1 && theirRow && theirRow.votes > 0;
-        var ownPhoto = OVERVIEW.ownPhoto || (theirRow ? theirRow.photo : '') || '';
-        var ownInitial = USER.name ? USER.name.charAt(0).toUpperCase() : '?';
+        var ownPhoto = OVERVIEW.ownPhoto || (theirRow ? theirRow.photo : '') || ''; var ownInitial = USER.name ? USER.name.charAt(0).toUpperCase() : '?';
         var ownPhotoHtml = ownPhoto ? '<img src="' + escAttr(ownPhoto) + '" alt="" onerror="this.style.display=\'none\';this.parentElement.textContent=\'' + escAttr(ownInitial) + '\'">' : '';
         el.className = 'hero mca-hero';
         el.innerHTML = '<div class="hero-inner"><div class="hero-top"><span class="hero-live"><span class="dot"></span>Live · ' + esc(liveText) + '</span><div class="hero-badges"><span class="badge-status ' + (isLeading ? 'leading' : 'trailing') + '">' + (isLeading ? '<i class="fas fa-crown"></i> Leading' : 'Rank #' + rk) + '</span><span class="hero-rank">' + ownWard.candidates.length + ' in race</span></div></div><div class="hero-name-row"><div class="hero-avatar' + (ownPhoto ? '' : ' no-photo') + '">' + (ownPhoto ? ownPhotoHtml : ownInitial) + '</div><div><div class="hero-eyebrow">Your Ward · ' + esc(ownWard.wardName) + '</div><div class="hero-name">' + esc(USER.name) + '</div><div class="hero-meta">MCA · ' + esc(ownWard.wardName) + '</div></div></div><div class="hero-stats"><div><div class="hero-stat-num">' + (theirRow ? theirRow.votes.toLocaleString() : '0') + '</div><div class="hero-stat-lbl">Votes</div></div><div><div class="hero-stat-num blue">' + ownWard.leaderPct + '%</div><div class="hero-stat-lbl">Ward Leader</div></div><div><div class="hero-stat-num stat-info">' + ownWard.candidates.length + '</div><div class="hero-stat-lbl">Candidates</div></div></div><div class="hero-share"><div class="hero-share-legend"><span>Tap a ward below to see its race</span><span>' + OVERVIEW.reported + ' of ' + OVERVIEW.totalStreams + ' streams reported</span></div></div></div>';
@@ -923,8 +848,7 @@ function renderHero() {
   }
 
   var isOwn = (!USER.isSpectator && OVERVIEW.viewingPosition === USER.position);
-  var lb = OVERVIEW.leaderboard || [];
-  var globalTotal = OVERVIEW.globalTotal || 0;
+  var lb = OVERVIEW.leaderboard || []; var globalTotal = OVERVIEW.globalTotal || 0;
   var focusName, focusParty, focusVotes, focusPct, focusRank, statusLabel, statusClass, focusPhoto;
 
   if (isOwn && OVERVIEW.ownRow) {
@@ -934,8 +858,7 @@ function renderHero() {
   } else {
     var ld = lb[0];
     if (!ld) { el.className = 'hero other'; el.innerHTML = '<div class="hero-inner"><div class="empty" style="padding:20px 0;"><div class="empty-icon"><i class="fas fa-hourglass-half"></i></div><div class="empty-title">No results yet</div><div class="empty-sub">Tallies will appear as agents submit results.</div></div></div>'; return; }
-    focusName = ld.name; focusParty = ld.party; focusVotes = ld.votes; focusPct = ld.pct; focusRank = 1; statusLabel = 'Leading'; statusClass = 'leading';
-    focusPhoto = ld.photo || '';
+    focusName = ld.name; focusParty = ld.party; focusVotes = ld.votes; focusPct = ld.pct; focusRank = 1; statusLabel = 'Leading'; statusClass = 'leading'; focusPhoto = ld.photo || '';
   }
 
   var margin = OVERVIEW.margin || 0;
@@ -946,101 +869,83 @@ function renderHero() {
   el.innerHTML = '<div class="hero-inner"><div class="hero-top"><span class="hero-live"><span class="dot"></span>Live · ' + esc(liveText) + '</span><div class="hero-badges"><span class="badge-status ' + statusClass + '">' + (statusClass === 'leading' ? '<i class="fas fa-crown"></i> ' : '') + esc(statusLabel) + '</span><span class="hero-rank">#' + focusRank + ' / ' + lb.length + '</span></div></div><div class="hero-name-row"><div class="hero-avatar' + (focusPhoto ? '' : ' no-photo') + '">' + (focusPhoto ? focusPhotoHtml : focusInitial) + '</div><div><div class="hero-eyebrow">' + (isOwn ? 'You' : 'Leading') + '</div><div class="hero-name">' + esc(focusName) + '</div><div class="hero-meta">' + esc(focusParty) + ' · ' + esc(OVERVIEW.viewingPosition) + '</div></div></div><div class="hero-stats"><div><div class="hero-stat-num">' + focusVotes.toLocaleString() + '</div><div class="hero-stat-lbl">Votes</div></div><div><div class="hero-stat-num blue">' + focusPct + '%</div><div class="hero-stat-lbl">Share</div></div><div><div class="hero-stat-num">' + (margin > 0 ? '+' : '') + margin.toLocaleString() + '</div><div class="hero-stat-lbl">Margin</div></div></div><div class="hero-share"><div class="hero-share-track"><div class="hero-share-bar" style="width:' + focusPct + '%"></div></div><div class="hero-share-legend"><span>' + OVERVIEW.reported + ' of ' + OVERVIEW.totalStreams + ' streams reported</span><span>' + globalTotal.toLocaleString() + ' total votes</span></div></div></div>';
 }
 
+// ================================================================
+//  RENDERING — BREADCRUMB & DRILL GRID
+// ================================================================
 function renderBreadcrumb() {
-  var el = document.getElementById('breadcrumb');
-  var parts = [];
+  var el = document.getElementById('breadcrumb'); var parts = [];
   parts.push({ label: 'All Wards', active: !DRILL_WARD, onclick: 'resetDrill()' });
   if (DRILL_WARD) { parts.push({ label: DRILL_WARD_NAME, active: !DRILL_CENTRE, onclick: 'drillToWard(\'' + escAttr(DRILL_WARD) + '\',\'' + escAttr(DRILL_WARD_NAME) + '\')' }); }
   if (DRILL_CENTRE) { parts.push({ label: DRILL_CENTRE_NAME, active: true, onclick: '' }); }
   el.innerHTML = parts.map(function (p, i) {
-    var cls = 'bc-seg' + (p.active ? ' current' : '');
-    var attr = p.active ? '' : ' onclick="' + p.onclick + '"';
+    var cls = 'bc-seg' + (p.active ? ' current' : ''); var attr = p.active ? '' : ' onclick="' + p.onclick + '"';
     return (i > 0 ? '<i class="fas fa-chevron-right bc-sep"></i>' : '') + '<button class="' + cls + '"' + attr + '>' + (i === 0 ? '<i class="fas fa-layer-group"></i> ' : '') + esc(p.label) + '</button>';
   }).join('');
 }
 
 function renderDrillGrid() {
-  renderBreadcrumb();
-  var el = document.getElementById('drillGrid');
-  var title = document.getElementById('drillTitle');
-  var sub = document.getElementById('drillSub');
-  var count = document.getElementById('drillCount');
+  renderBreadcrumb(); var el = document.getElementById('drillGrid'); var title = document.getElementById('drillTitle'); var sub = document.getElementById('drillSub'); var count = document.getElementById('drillCount');
 
   if (!DRILL_WARD) {
     title.textContent = OVERVIEW.viewingPosition === 'MCA' ? 'Ward Races' : 'Ward Breakdown';
     sub.textContent = 'Vote share by ward · ' + OVERVIEW.viewingPosition;
-    var wards = OVERVIEW.wards || [];
-    count.textContent = wards.length + ' wards';
+    var wards = OVERVIEW.wards || []; count.textContent = wards.length + ' wards';
     if (!wards.length) { el.innerHTML = emptyGrid('No wards configured', ''); return; }
-    el.innerHTML = wards.map(renderWardCard).join('');
-    return;
+    el.innerHTML = wards.map(renderWardCard).join(''); return;
   }
 
   if (!DRILL_DATA) { el.innerHTML = '<div class="load" style="grid-column:1/-1;"><i class="fas fa-spinner"></i>Loading…</div>'; return; }
 
   if (DRILL_DATA.level === 'centre') {
-    title.textContent = DRILL_WARD_NAME + ' Centres';
-    sub.textContent = 'Vote share by polling centre';
-    var cs = DRILL_DATA.centres || [];
-    count.textContent = cs.length + ' centres';
+    title.textContent = DRILL_WARD_NAME + ' Centres'; sub.textContent = 'Vote share by polling centre';
+    var cs = DRILL_DATA.centres || []; count.textContent = cs.length + ' centres';
     if (!cs.length) { el.innerHTML = emptyGrid('No centres', ''); return; }
-    el.innerHTML = cs.map(renderCentreCard).join('');
-    return;
+    el.innerHTML = cs.map(renderCentreCard).join(''); return;
   }
 
   if (DRILL_DATA.level === 'stream') {
-    title.textContent = DRILL_CENTRE_NAME + ' Streams';
-    sub.textContent = 'Vote share by stream';
-    var ss = DRILL_DATA.streams || [];
-    count.textContent = ss.length + ' streams';
+    title.textContent = DRILL_CENTRE_NAME + ' Streams'; sub.textContent = 'Vote share by stream';
+    var ss = DRILL_DATA.streams || []; count.textContent = ss.length + ' streams';
     if (!ss.length) { el.innerHTML = emptyGrid('No streams', ''); return; }
     el.innerHTML = ss.map(renderStreamCard).join('');
   }
 }
 
 function renderWardCard(w) {
-  var hasData = w.candidates && w.candidates.length > 0;
-  var cls = 'card';
+  var hasData = w.candidates && w.candidates.length > 0; var cls = 'card';
   if (hasData && w.leader) { cls += isOwnCandidate(w.leader.name) ? ' leading' : ' trailing'; } else cls += ' empty';
-  var statusInfo = statusChip(w.streamsDone, w.streamsTotal);
-  var cardTint = '';
+  var statusInfo = statusChip(w.streamsDone, w.streamsTotal); var cardTint = '';
   if (hasData && w.leader && w.leader.color && !isOwnCandidate(w.leader.name)) { cardTint = 'background:' + tintBg(w.leader.color, 0.05) + ';'; }
   var body;
   if (hasData && w.leader) {
-    var initial = w.leader.name ? w.leader.name.charAt(0).toUpperCase() : '?';
-    var photoHtml = w.leader.photo ? '<img src="' + escAttr(w.leader.photo) + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.textContent=\'' + escAttr(initial) + '\'">' : initial;
+    var initial = w.leader.name ? w.leader.name.charAt(0).toUpperCase() : '?'; var photoHtml = w.leader.photo ? '<img src="' + escAttr(w.leader.photo) + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.textContent=\'' + escAttr(initial) + '\'">' : initial;
     body = '<div class="card-leader"><div class="avatar-wrap with-crown' + (w.leader.photo ? '' : ' no-photo') + '">' + photoHtml + '<span class="avatar-crown"><i class="fas fa-crown"></i></span></div><div class="card-leader-info"><div class="card-leader-name">' + esc(w.leader.name) + '</div><div class="card-leader-party">' + esc(w.leader.party) + '</div></div></div><div><div class="card-numbers"><span class="card-votes">' + w.leader.votes.toLocaleString() + '</span><span class="card-pct">' + w.leaderPct + '%</span></div><div class="card-votes-lbl">Votes in ward</div></div><div class="card-bar"><div class="card-bar-fill" style="width:' + w.leaderPct + '%;background:' + (w.leader.color || '#A5CF83') + '"></div></div>';
   } else { body = '<div class="card-empty-body"><i class="fas fa-hourglass-half"></i>Waiting for agent submissions</div>'; }
   return '<div class="' + cls + '" style="' + cardTint + '" onclick="drillToWard(\'' + escAttr(w.wardId) + '\',\'' + escAttr(w.wardName) + '\')"><div class="card-head"><div><div class="card-name">' + esc(w.wardName) + '</div><div class="card-sub">' + w.candidates.length + ' candidates</div></div><span class="card-status ' + statusInfo.cls + '">' + statusInfo.label + '</span></div>' + body + '</div>';
 }
 
 function renderCentreCard(c) {
-  var hasData = c.candidates && c.candidates.length > 0;
-  var cls = 'card';
+  var hasData = c.candidates && c.candidates.length > 0; var cls = 'card';
   if (hasData && c.leader) cls += isOwnCandidate(c.leader.name) ? ' leading' : ' trailing'; else cls += ' empty';
-  var statusInfo = statusChip(c.streamsDone, c.streamsTotal);
-  var cardTint = '';
+  var statusInfo = statusChip(c.streamsDone, c.streamsTotal); var cardTint = '';
   if (hasData && c.leader && c.leader.color && !isOwnCandidate(c.leader.name)) { cardTint = 'background:' + tintBg(c.leader.color, 0.05) + ';'; }
   var body;
   if (hasData && c.leader) {
-    var initial = c.leader.name ? c.leader.name.charAt(0).toUpperCase() : '?';
-    var photoHtml = c.leader.photo ? '<img src="' + escAttr(c.leader.photo) + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.textContent=\'' + escAttr(initial) + '\'">' : initial;
+    var initial = c.leader.name ? c.leader.name.charAt(0).toUpperCase() : '?'; var photoHtml = c.leader.photo ? '<img src="' + escAttr(c.leader.photo) + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.textContent=\'' + escAttr(initial) + '\'">' : initial;
     body = '<div class="card-leader"><div class="avatar-wrap with-crown' + (c.leader.photo ? '' : ' no-photo') + '">' + photoHtml + '<span class="avatar-crown"><i class="fas fa-crown"></i></span></div><div class="card-leader-info"><div class="card-leader-name">' + esc(c.leader.name) + '</div><div class="card-leader-party">' + esc(c.leader.party) + '</div></div></div><div><div class="card-numbers"><span class="card-votes">' + c.leader.votes.toLocaleString() + '</span><span class="card-pct">' + c.leaderPct + '%</span></div><div class="card-votes-lbl">Votes in centre</div></div><div class="card-bar"><div class="card-bar-fill" style="width:' + c.leaderPct + '%;background:' + (c.leader.color || '#A5CF83') + '"></div></div>';
   } else { body = '<div class="card-empty-body"><i class="fas fa-hourglass-half"></i>No submissions yet</div>'; }
   return '<div class="' + cls + '" style="' + cardTint + '" onclick="drillToCentre(\'' + escAttr(c.centreId) + '\',\'' + escAttr(c.centreName) + '\')"><div class="card-head"><div><div class="card-name">' + esc(c.centreName) + '</div><div class="card-sub">' + c.candidates.length + ' candidates</div></div><span class="card-status ' + statusInfo.cls + '">' + statusInfo.label + '</span></div>' + body + '</div>';
 }
 
 function renderStreamCard(s) {
-  var hasData = s.candidates && s.candidates.length > 0;
-  var cls = 'card';
+  var hasData = s.candidates && s.candidates.length > 0; var cls = 'card';
   if (!s.submitted) cls += ' empty'; else if (hasData && s.leader) cls += isOwnCandidate(s.leader.name) ? ' leading' : ' trailing';
   var statusInfo = s.submitted ? { cls: 'done', label: '<i class="fas fa-circle-check"></i> Submitted' } : { cls: 'pending', label: '<i class="fas fa-circle"></i> Pending' };
   var cardTint = '';
   if (hasData && s.leader && s.leader.color && !isOwnCandidate(s.leader.name)) { cardTint = 'background:' + tintBg(s.leader.color, 0.05) + ';'; }
   var body;
   if (hasData && s.leader) {
-    var initial = s.leader.name ? s.leader.name.charAt(0).toUpperCase() : '?';
-    var photoHtml = s.leader.photo ? '<img src="' + escAttr(s.leader.photo) + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.textContent=\'' + escAttr(initial) + '\'">' : initial;
+    var initial = s.leader.name ? s.leader.name.charAt(0).toUpperCase() : '?'; var photoHtml = s.leader.photo ? '<img src="' + escAttr(s.leader.photo) + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.textContent=\'' + escAttr(initial) + '\'">' : initial;
     body = '<div class="card-leader"><div class="avatar-wrap with-crown' + (s.leader.photo ? '' : ' no-photo') + '">' + photoHtml + '<span class="avatar-crown"><i class="fas fa-crown"></i></span></div><div class="card-leader-info"><div class="card-leader-name">' + esc(s.leader.name) + '</div><div class="card-leader-party">' + esc(s.leader.party) + '</div></div></div><div><div class="card-numbers"><span class="card-votes">' + s.leader.votes.toLocaleString() + '</span><span class="card-pct">' + s.leaderPct + '%</span></div><div class="card-votes-lbl">Votes in stream</div></div><div class="card-bar"><div class="card-bar-fill" style="width:' + s.leaderPct + '%;background:' + (s.leader.color || '#A5CF83') + '"></div></div>';
   } else { body = '<div class="card-empty-body"><i class="fas fa-hourglass-half"></i>' + (s.submitted ? 'No votes recorded' : 'Waiting for submission') + '</div>'; }
   var click = hasData ? ' onclick="openStreamDetail(\'' + escAttr(s.streamCode) + '\')"' : '';
@@ -1054,11 +959,11 @@ function statusChip(done, total) {
   if (pct > 0) return { cls: 'partial', label: '<i class="fas fa-circle-half-stroke"></i> ' + done + '/' + total };
   return { cls: 'pending', label: '<i class="fas fa-circle"></i> 0/' + total };
 }
+function emptyGrid(title, sub) { return '<div class="empty" style="grid-column:1/-1;"><div class="empty-icon"><i class="fas fa-inbox"></i></div><div class="empty-title">' + title + '</div><div class="empty-sub">' + sub + '</div></div>'; }
 
-function emptyGrid(title, sub) {
-  return '<div class="empty" style="grid-column:1/-1;"><div class="empty-icon"><i class="fas fa-inbox"></i></div><div class="empty-title">' + title + '</div><div class="empty-sub">' + sub + '</div></div>';
-}
-
+// ================================================================
+//  RENDERING — LEADERBOARD
+// ================================================================
 function getScopedLeaderboard() {
   if (!OVERVIEW) return null;
   if (DRILL_WARD && !DRILL_CENTRE) {
@@ -1068,14 +973,8 @@ function getScopedLeaderboard() {
   }
   if (DRILL_CENTRE && DRILL_DATA && DRILL_DATA.level === 'stream') {
     var byCode = {};
-    (DRILL_DATA.streams || []).forEach(function (s) {
-      (s.candidates || []).forEach(function (c) {
-        if (!byCode[c.code]) { byCode[c.code] = { code: c.code, name: c.name, party: c.party, photo: c.photo || '', votes: 0 }; }
-        byCode[c.code].votes += c.votes;
-      });
-    });
-    var arr = Object.keys(byCode).map(function (k) { return byCode[k]; });
-    var total = arr.reduce(function (s, c) { return s + c.votes; }, 0);
+    (DRILL_DATA.streams || []).forEach(function (s) { (s.candidates || []).forEach(function (c) { if (!byCode[c.code]) { byCode[c.code] = { code: c.code, name: c.name, party: c.party, photo: c.photo || '', votes: 0 }; } byCode[c.code].votes += c.votes; }); });
+    var arr = Object.keys(byCode).map(function (k) { return byCode[k]; }); var total = arr.reduce(function (s, c) { return s + c.votes; }, 0);
     return { candidates: arr, total: total, context: DRILL_CENTRE_NAME + ' Centre', streamsDone: (DRILL_DATA.streams || []).filter(function (s) { return s.submitted; }).length, streamsTotal: (DRILL_DATA.streams || []).length };
   }
   return null;
@@ -1083,12 +982,8 @@ function getScopedLeaderboard() {
 
 function renderBoard() {
   if (!OVERVIEW) return;
-  var el = document.getElementById('board');
-  var sub = document.getElementById('boardSub');
-  var count = document.getElementById('boardCount');
-  var heads = document.querySelectorAll('.section-head');
-  var boardHead = null;
-  heads.forEach(function (h) { if (h.querySelector('#boardSub')) boardHead = h; });
+  var el = document.getElementById('board'); var sub = document.getElementById('boardSub'); var count = document.getElementById('boardCount');
+  var heads = document.querySelectorAll('.section-head'); var boardHead = null; heads.forEach(function (h) { if (h.querySelector('#boardSub')) boardHead = h; });
 
   if (OVERVIEW.viewingPosition === 'MCA' && !DRILL_WARD) { if (boardHead) boardHead.style.display = 'none'; el.style.display = 'none'; el.innerHTML = ''; return; }
   var isDrilled = !!(DRILL_WARD || DRILL_CENTRE);
@@ -1134,6 +1029,9 @@ function resetDrill() { DRILL_WARD = ''; DRILL_WARD_NAME = ''; DRILL_CENTRE = ''
 function drillToWard(wardId, wardName) { DRILL_WARD = wardId; DRILL_WARD_NAME = wardName; DRILL_CENTRE = ''; DRILL_CENTRE_NAME = ''; DRILL_DATA = null; renderHero(); renderBoard(); renderDrillGrid(); document.getElementById('drillGrid').innerHTML = '<div class="load" style="grid-column:1/-1;"><i class="fas fa-spinner"></i>Loading centres…</div>'; loadDrill(); window.scrollTo({ top: document.querySelector('.section-head').offsetTop - 120, behavior: 'smooth' }); }
 function drillToCentre(centreId, centreName) { DRILL_CENTRE = centreId; DRILL_CENTRE_NAME = centreName; DRILL_DATA = null; renderHero(); renderBoard(); renderDrillGrid(); document.getElementById('drillGrid').innerHTML = '<div class="load" style="grid-column:1/-1;"><i class="fas fa-spinner"></i>Loading streams…</div>'; loadDrill(); window.scrollTo({ top: document.querySelector('.section-head').offsetTop - 120, behavior: 'smooth' }); }
 
+// ================================================================
+//  VIEW SWITCHING & TRACKER RENDERING
+// ================================================================
 function switchView(view) {
   if (view === CURRENT_VIEW) return; CURRENT_VIEW = view;
   document.querySelectorAll('.viewtab').forEach(function (t) { t.classList.toggle('active', t.dataset.view === view); });
@@ -1235,13 +1133,8 @@ async function openTrackerPip(streamCode, position) {
     })).sort((a, b) => b.votes - a.votes);
 
     const res = {
-        submitted: true,
-        submittedBy: results[0].submitted_by,
-        submittedByName: results[0].submitted_by,
-        submittedAt: new Date(results[0].created_at).toLocaleString(),
-        results: mappedResults
+        submitted: true, submittedBy: results[0].submitted_by, submittedByName: results[0].submitted_by, submittedAt: new Date(results[0].created_at).toLocaleString(), results: mappedResults
     };
-    
     renderTrackerPipResult(res, position, label, centreName, wardName);
   } catch (err) {
     sheet.innerHTML = '<div class="sheet-head"><div><div class="sheet-title">' + esc(position) + '</div></div><button class="sheet-close" onclick="closeSheet()"><i class="fas fa-xmark"></i></button></div><div class="empty"><div class="empty-title">Connection error</div></div>';
@@ -1287,6 +1180,9 @@ function renderTrackerBreadcrumb() {
   }).join('');
 }
 
+// ================================================================
+//  STREAM/CANDIDATE DETAIL & HELPERS
+// ================================================================
 function openStreamDetail(streamCode) {
   if (!DRILL_DATA || !DRILL_DATA.streams) return;
   var st = DRILL_DATA.streams.filter(function (s) { return s.streamCode === streamCode; })[0]; if (!st) return;
