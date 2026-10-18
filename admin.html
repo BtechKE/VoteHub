@@ -2878,9 +2878,7 @@ async function saveAspirant() {
   toast('Aspirant created.', 'success'); closeModal(); loadAllData();
 }
 
-// ================================================================
-//  RESULTS & TRACKER
-// ================================================================
+
 // ================================================================
 //  ADMIN — RESULTS TAB (ward-aware MCA)
 // ================================================================
@@ -3109,34 +3107,283 @@ function backToMCAGrid() {
   renderResults();
 }
 
+// ================================================================
+//  ADMIN — SUBMISSION TRACKER
+// ================================================================
 var TRACKER_DATA = null;
+var POSITION_SHORT_MAP = {
+  'President': 'P',
+  'Governor':  'G',
+  'Senator':   'S',
+  'MP':        'M',
+  'Women Rep': 'W',
+  'MCA':       'C'
+};
+
+async function refreshTracker(btn) {
+  if (btn) thBtnLoad(btn, 'Refreshing…');
+  await loadSubmissionMatrix();
+  if (btn) thBtnDone(btn);
+}
+
 async function loadSubmissionMatrix() {
-  const [{ data: w }, { data: c }, { data: s }, { data: r }] = await Promise.all([
-    db.from('wards').select('*').order('name'), db.from('centres').select('*'), db.from('streams').select('*'), db.from('results').select('stream_code, position')
-  ]);
+  document.getElementById('trackerList').innerHTML = '<div class="loading-inline"><i class="fas fa-spinner"></i>Loading tracker…</div>';
   
-  var submitted = {}; r.forEach(res => { if(!submitted[res.stream_code]) submitted[res.stream_code] = {}; submitted[res.stream_code][res.position] = true; });
-  
-  var html = '';
-  w.forEach(ward => {
-    var centres = c.filter(x => x.ward_id === ward.id);
-    centres.forEach(centre => {
-      var streams = s.filter(x => x.centre_id === centre.id);
-      if (!streams.length) return;
-      
-      html += `<div class="tracker-group"><div class="tracker-group-head"><div><div class="tracker-ward">${esc(ward.name)}</div><div class="tracker-centre">${esc(centre.name)}</div></div></div>`;
-      streams.forEach(st => {
-        html += `<div class="stream-row"><div class="stream-id"><div class="stream-name">STR ${String(st.stream_number).padStart(2,'0')}</div><div class="stream-code">${st.code}</div></div><div class="track-pips">`;
-        POSITIONS.forEach(pos => {
-          var hit = submitted[st.code] && submitted[st.code][pos];
-          html += `<span class="track-pip ${hit?'done':'pending'}">${pos.charAt(0)}</span>`;
-        });
-        html += `</div></div>`;
-      });
-      html += `</div>`;
+  try {
+    const [{ data: wards }, { data: centres }, { data: streams }, { data: results }] = await Promise.all([
+      db.from('wards').select('*').order('name'),
+      db.from('centres').select('*'),
+      db.from('streams').select('*'),
+      db.from('results').select('stream_code, position')
+    ]);
+
+    // Build submission index
+    var submitted = {};
+    (results || []).forEach(r => {
+      if (!submitted[r.stream_code]) submitted[r.stream_code] = {};
+      submitted[r.stream_code][r.position] = true;
     });
+
+    var totalStreams = (streams || []).length;
+    var totalCells = totalStreams * POSITIONS.length;
+    var submittedCells = (results || []).length;
+    var fullyReported = 0;
+    var groups = [];
+
+    (wards || []).forEach(w => {
+      var wCentres = (centres || []).filter(c => c.ward_id === w.id);
+      wCentres.forEach(c => {
+        var cStreams = (streams || []).filter(s => s.centre_id === c.id).sort((a,b) => a.stream_number - b.stream_number);
+        if (!cStreams.length) return;
+
+        var streamRows = cStreams.map(s => {
+          var statuses = {};
+          var submittedCount = 0;
+          
+          POSITIONS.forEach(pos => {
+            if (submitted[s.code] && submitted[s.code][pos]) {
+              statuses[pos] = { status: 'submitted' };
+              submittedCount++;
+            } else {
+              statuses[pos] = null;
+            }
+          });
+
+          var isComplete = submittedCount === POSITIONS.length;
+          if (isComplete) fullyReported++;
+
+          return {
+            code: s.code,
+            streamNumber: s.stream_number,
+            label: 'STR ' + String(s.stream_number).padStart(2, '0'),
+            statuses: statuses,
+            submittedCount: submittedCount,
+            isComplete: isComplete
+          };
+        });
+
+        groups.push({
+          wardId: w.id,
+          wardName: w.name,
+          centreId: c.id,
+          centreName: c.name,
+          streams: streamRows
+        });
+      });
+    });
+
+    TRACKER_DATA = {
+      positions: POSITIONS,
+      groups: groups,
+      summary: {
+        totalStreams: totalStreams,
+        totalCells: totalCells,
+        submittedCells: submittedCells,
+        fullyReportedStreams: fullyReported
+      }
+    };
+
+    populateTrackerWards();
+    renderTracker();
+    updateTrackerBadge();
+
+  } catch (e) {
+    console.error(e);
+    document.getElementById('trackerList').innerHTML = '<div class="empty">Failed to load tracker data.</div>';
+  }
+}
+
+function populateTrackerWards() {
+  if (!TRACKER_DATA) return;
+  var sel = document.getElementById('trackerWard');
+  var wardSet = {};
+  TRACKER_DATA.groups.forEach(g => { wardSet[g.wardId] = g.wardName; });
+  
+  var current = sel.value;
+  sel.innerHTML = '<option value="">All Wards</option>' +
+    Object.keys(wardSet).sort((a,b) => wardSet[a].localeCompare(wardSet[b])).map(id => 
+      '<option value="' + escAttr(id) + '">' + esc(wardSet[id]) + '</option>'
+    ).join('');
+  
+  if (current) sel.value = current;
+  trackerCentreOptions();
+}
+
+function trackerCentreOptions() {
+  if (!TRACKER_DATA) return;
+  var wardFilter = document.getElementById('trackerWard').value;
+  var sel = document.getElementById('trackerCentre');
+  var centreSet = {};
+  
+  TRACKER_DATA.groups.forEach(g => {
+    if (wardFilter && g.wardId !== wardFilter) return;
+    centreSet[g.centreId] = g.centreName;
   });
-  document.getElementById('trackerList').innerHTML = html || `<div class="empty">No streams found.</div>`;
+  
+  var current = sel.value;
+  sel.innerHTML = '<option value="">All Centres</option>' +
+    Object.keys(centreSet).sort().map(id => 
+      '<option value="' + escAttr(id) + '">' + esc(centreSet[id]) + '</option>'
+    ).join('');
+    
+  if (current && centreSet[current]) sel.value = current;
+}
+
+function updateTrackerBadge() {
+  if (!TRACKER_DATA) return;
+  var s = TRACKER_DATA.summary;
+  document.getElementById('badgeTracker').textContent = s.fullyReportedStreams + '/' + s.totalStreams;
+}
+
+function renderTracker() {
+  if (!TRACKER_DATA) return;
+  
+  var wardFilter = document.getElementById('trackerWard').value;
+  var centreFilter = document.getElementById('trackerCentre').value;
+  var statusFilter = document.getElementById('trackerStatus').value;
+
+  // 1. Summary Strip
+  var s = TRACKER_DATA.summary;
+  var pct = s.totalCells > 0 ? Math.round(s.submittedCells / s.totalCells * 100) : 0;
+  
+  document.getElementById('trackerSummary').innerHTML =
+    '<div class="tracker-stat"><div class="num">' + s.totalStreams + '</div><div class="lbl">Streams</div></div>' +
+    '<div class="tracker-stat"><div class="num">' + s.fullyReportedStreams + '</div><div class="lbl">Complete</div></div>' +
+    '<div class="tracker-stat"><div class="num">' + s.submittedCells + '</div><div class="lbl">Submissions</div></div>' +
+    '<div class="tracker-stat pct"><div class="num">' + pct + '%</div><div class="lbl">Overall</div></div>';
+
+  // 2. Filter groups
+  var visibleGroups = TRACKER_DATA.groups.filter(g => {
+    if (wardFilter && g.wardId !== wardFilter) return false;
+    if (centreFilter && g.centreId !== centreFilter) return false;
+    return true;
+  });
+
+  // 3. Render Stream Rows
+  var html = '';
+  visibleGroups.forEach(g => {
+    var streamsToShow = g.streams.filter(st => {
+      if (statusFilter === 'complete') return st.isComplete;
+      if (statusFilter === 'partial') return st.submittedCount > 0 && !st.isComplete;
+      if (statusFilter === 'pending') return st.submittedCount === 0;
+      return true;
+    });
+    
+    if (!streamsToShow.length) return;
+
+    html += '<div class="tracker-group">';
+    html += '<div class="tracker-group-head"><div>';
+    html += '<div class="tracker-ward">' + esc(g.wardName) + '</div>';
+    html += '<div class="tracker-centre">' + esc(g.centreName) + '</div>';
+    html += '</div><div class="tracker-group-count">' +
+            g.streams.filter(x => x.isComplete).length + '/' + g.streams.length + ' complete</div></div>';
+
+    streamsToShow.forEach(st => {
+      html += '<div class="stream-row' + (st.isComplete ? ' complete' : '') + '">';
+      html += '<div class="stream-id"><div class="stream-name">' + esc(g.centreName) + ' · ' + esc(st.label) + '</div>';
+      html += '<div class="stream-code">' + esc(st.code) + '</div></div>';
+      
+      html += '<div class="track-pips">';
+      TRACKER_DATA.positions.forEach(pos => {
+        var hit = st.statuses[pos];
+        var short = POSITION_SHORT_MAP[pos] || pos.charAt(0);
+        var tip = hit ? pos + ' · tap to view results' : pos + ' · not submitted yet';
+        
+        if (hit) {
+          html += '<button type="button" class="track-pip done" title="' + escAttr(tip) + '" onclick="openTrackerPip(\'' + escAttr(st.code) + '\',\'' + escAttr(pos) + '\')">' + short + '</button>';
+        } else {
+          html += '<span class="track-pip pending" title="' + escAttr(tip) + '">' + short + '</span>';
+        }
+      });
+      html += '</div>';
+      html += '<div class="stream-progress">' + st.submittedCount + '/' + TRACKER_DATA.positions.length + '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+
+  if (!html) {
+    html = '<div class="empty"><i class="fas fa-inbox"></i><div>No streams match the current filters.</div></div>';
+  }
+  document.getElementById('trackerList').innerHTML = html;
+}
+
+async function openTrackerPip(streamCode, position) {
+  var sheet = document.getElementById('sheetContent');
+  
+  // Find context for header
+  var ctx = null;
+  if (TRACKER_DATA) {
+    TRACKER_DATA.groups.forEach(g => {
+      g.streams.forEach(st => { if (st.code === streamCode) ctx = { group: g, stream: st }; });
+    });
+  }
+  
+  var label = ctx ? ctx.stream.label : streamCode;
+  var centreName = ctx ? ctx.group.centreName : '';
+  var wardName = ctx ? ctx.group.wardName : '';
+
+  document.getElementById('sheetBg').classList.add('active');
+  sheet.innerHTML = '<div class="sheet-head"><div><div class="sheet-title">' + esc(position) + ' · ' + esc(label) + '</div><div class="sheet-sub">' + esc(centreName) + ' · ' + esc(wardName) + ' Ward</div></div><button class="sheet-close" onclick="closeSheet()"><i class="fas fa-xmark"></i></button></div><div class="loading-inline"><i class="fas fa-spinner"></i>Loading submission…</div>';
+
+  try {
+    const { data } = await db.from('results')
+      .select('votes, submitted_by, created_at, candidates(name, party, photo_url)')
+      .eq('stream_code', streamCode).eq('position', position);
+
+    if (!data || !data.length) {
+      sheet.innerHTML = '<div class="sheet-head"><div><div class="sheet-title">' + esc(position) + ' · ' + esc(label) + '</div></div><button class="sheet-close" onclick="closeSheet()"><i class="fas fa-xmark"></i></button></div><div class="empty"><div class="empty-title">Not submitted yet</div></div>';
+      return;
+    }
+
+    var total = data.reduce((sum, r) => sum + r.votes, 0);
+    var infoHtml = '<div class="pip-result-info">' +
+      '<div class="row"><i class="fas fa-user-check user"></i>Submitted by <strong>' + esc(data[0].submitted_by) + '</strong></div>' +
+      '<div class="row"><i class="fas fa-clock clock"></i>' + (data[0].created_at ? new Date(data[0].created_at).toLocaleString() : 'Unknown time') + '</div>' +
+      '<div class="row"><i class="fas fa-lock lock"></i>Locked · ' + total.toLocaleString() + ' total votes</div></div>';
+
+    var rowsHtml = data.sort((a,b) => b.votes - a.votes).map((r, idx) => {
+      var pct = total > 0 ? (r.votes / total * 100).toFixed(1) : '0.0';
+      var medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : (idx + 1);
+      var initial = r.candidates.name ? r.candidates.name.charAt(0).toUpperCase() : '?';
+      var photo = r.candidates.photo_url ? '<img src="' + escAttr(r.candidates.photo_url) + '" onerror="this.style.display=\'none\'">' : initial;
+      
+      return '<div class="result-row ' + (idx === 0 ? 'leader' : '') + '">' +
+        '<div class="avatar-wrap ' + (r.candidates.photo_url ? '' : 'no-photo') + '">' + photo + '<span class="avatar-rank">' + medal + '</span></div>' +
+        '<div class="result-info"><div class="result-name">' + esc(r.candidates.name) + '</div><div class="result-party">' + esc(r.candidates.party) + '</div></div>' +
+        '<div class="result-votes">' + r.votes.toLocaleString() + '</div><div class="result-pct">' + pct + '%</div></div>';
+    }).join('');
+
+    sheet.innerHTML = '<div class="sheet-head"><div><div class="sheet-title">' + esc(position) + ' · ' + esc(label) + '</div><div class="sheet-sub">' + esc(centreName) + ' · ' + esc(wardName) + ' Ward</div></div><button class="sheet-close" onclick="closeSheet()"><i class="fas fa-xmark"></i></button></div>' + infoHtml + rowsHtml;
+
+  } catch (e) {
+    console.error(e);
+    sheet.innerHTML = '<div class="empty">Error loading results.</div>';
+  }
+}
+
+function closeSheet() {
+  document.getElementById('sheetBg').classList.remove('active');
 }
 
 // ================================================================
