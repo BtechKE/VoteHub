@@ -6,6 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin — TallyHub</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <style>
     /* ================================================================
    TALLYHUB UI KIT — Shared across Admin / Agent / Aspirant
@@ -2940,6 +2942,12 @@ async function loadAdminResults() {
   renderResults();
 }
 
+async function refreshResults(btn) {
+  if (btn) thBtnLoad(btn, 'Refreshing…');
+  await loadAdminResults();
+  if (btn) thBtnDone(btn);
+}
+  
 function renderResultTabs() {
   document.getElementById('resultsPosTabs').innerHTML = POSITIONS.map(pos => {
     var list = (RESULTS_DATA.results && RESULTS_DATA.results[pos]) || [];
@@ -3389,16 +3397,135 @@ function closeSheet() {
 // ================================================================
 //  EXPORT PDF & OTHERS (Mocked for UI stability)
 // ================================================================
-function openExportModal() { document.getElementById('exportModal').classList.add('active'); }
-function closeExportModal() { document.getElementById('exportModal').classList.remove('active'); }
-function selectExportPos(pos) { document.querySelectorAll('.export-opt').forEach(b => b.classList.toggle('active', b.dataset.pos === pos)); document.getElementById('exportGoBtn').disabled = false; }
-function generatePDF() { toast('PDF generation logic requires client-side aggregation (same as GAS version).', 'info'); }
-function openResetPwModal(kind, id) { toast('Password reset requires Supabase Auth Admin API (Edge Function).', 'info'); }
-function deleteAgent(id) { thConfirm({ title: 'Delete agent?', confirmText: 'Delete', tone: 'danger' }).then(async ok => { if(ok) { await db.from('agents').delete().eq('id', id); loadAllData(); } }); }
-function deleteAspirant(id) { thConfirm({ title: 'Delete aspirant?', confirmText: 'Delete', tone: 'danger' }).then(async ok => { if(ok) { await db.from('aspirants').delete().eq('id', id); loadAllData(); } }); }
-function toggleAspirant(id) { toast('Toggle active logic goes here.', 'info'); }
-function saveElectionSettings() { toast('Settings saved to config.', 'success'); }
-function saveAdminCredentials() { toast('Admin credentials are managed in Supabase Auth.', 'info'); }
+// ================================================================
+//  SETTINGS & CONFIG
+// ================================================================
+async function saveElectionSettings() {
+  var c = document.getElementById('cfgConstituency').value.trim();
+  var county = document.getElementById('cfgCounty').value.trim();
+  var date = document.getElementById('cfgElectionDate').value;
+
+  try {
+    await db.from('config').upsert([
+      { key: 'Constituency', value: c },
+      { key: 'County', value: county },
+      { key: 'ElectionDate', value: date || '' }
+    ]);
+    
+    // Update the label instantly
+    CONFIG.Constituency = c;
+    CONFIG.County = county;
+    document.getElementById('constituencyLabel').textContent = c ? c + ' · ' + county : 'Configure your election';
+    
+    toast('Settings saved.', 'success');
+  } catch (e) {
+    toast('Failed to save settings.', 'error');
+  }
+}
+
+async function saveAdminCredentials() {
+  var id = document.getElementById('cfgAdminID').value.trim();
+  var pw = document.getElementById('cfgAdminPass').value;
+  var pw2 = document.getElementById('cfgAdminPass2').value;
+
+  if (!id) return toast('Admin ID cannot be empty.', 'error');
+  if (pw || pw2) {
+    if (pw.length < 4) return toast('Password must be at least 4 characters.', 'error');
+    if (pw !== pw2) return toast('Passwords do not match.', 'error');
+  }
+
+  try {
+    // 1. Update the AdminID in config
+    await db.from('config').upsert({ key: 'AdminID', value: id });
+    
+    // 2. If password was provided, update the actual Supabase Auth user
+    if (pw) {
+      const { error } = await db.auth.updateUser({ password: pw });
+      if (error) throw error;
+    }
+    
+    toast('Credentials updated successfully.', 'success');
+    document.getElementById('cfgAdminPass').value = '';
+    document.getElementById('cfgAdminPass2').value = '';
+  } catch (e) {
+    toast(e.message || 'Failed to update credentials.', 'error');
+  }
+}
+
+// ================================================================
+//  AGENTS & ASPIRANTS (Actions)
+// ================================================================
+function openResetPwModal(kind, id) {
+  openModal(
+    modalHead('Reset Password', kind === 'agent' ? 'Agent ' + id : 'Aspirant ' + id) +
+    '<div class="form-group"><label>New Password</label><input id="m_newPw" type="password" placeholder="Min 4 characters"></div>' +
+    '<div class="form-group"><label>Confirm Password</label><input id="m_newPw2" type="password"></div>' +
+    '<div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="submitResetPw(\'' + kind + '\',\'' + escAttr(id) + '\')"><i class="fas fa-key"></i> Reset</button></div>'
+  );
+}
+
+async function submitResetPw(kind, id) {
+  var pw = document.getElementById('m_newPw').value;
+  var pw2 = document.getElementById('m_newPw2').value;
+  
+  if (!pw || pw.length < 4) return toast('Password must be at least 4 characters.', 'error');
+  if (pw !== pw2) return toast('Passwords do not match.', 'error');
+
+  // We need the email of the agent/aspirant to update their auth account
+  var list = kind === 'agent' ? AGENTS : ASPIRANTS;
+  var person = list.find(x => String(x.id) === String(id));
+  
+  if (!person) return toast('User not found.', 'error');
+  
+  // Get email from auth.users based on auth_user_id
+  // Since we can't query auth.users directly from the client, we rely on the RPC we just created
+  // We'll fetch the email from a view or just use the auth_user_id directly if we had a join.
+  // Wait, we can't query auth.users. We have to rely on the email format or pass the auth_user_id.
+  
+  // Actually, let's just update it by auth_user_id using a new RPC.
+  const { data, error } = await db.rpc('admin_reset_password_by_id', { p_auth_id: person.auth_user_id, p_new_password: pw });
+  
+  if (error || (data && !data.success)) {
+    toast(error?.message || 'Failed to reset password.', 'error');
+    return;
+  }
+  
+  toast('Password reset successfully.', 'success');
+  closeModal();
+}
+
+async function toggleAspirant(id) {
+  var person = ASPIRANTS.find(x => x.id === id);
+  if (!person) return;
+  
+  var newStatus = !person.is_active;
+  const { error } = await db.from('aspirants').update({ is_active: newStatus }).eq('id', id);
+  
+  if (error) return toast('Failed to toggle status.', 'error');
+  
+  toast('Aspirant ' + (newStatus ? 'activated' : 'deactivated') + '.', 'success');
+  loadAllData();
+}
+
+function deleteAgent(id) {
+  thConfirm({ title: 'Delete agent?', confirmText: 'Delete', tone: 'danger' }).then(async ok => {
+    if (ok) { 
+      await db.from('agents').delete().eq('id', id); 
+      toast('Agent deleted.', 'success');
+      loadAllData(); 
+    }
+  });
+}
+
+function deleteAspirant(id) {
+  thConfirm({ title: 'Delete aspirant?', confirmText: 'Delete', tone: 'danger' }).then(async ok => {
+    if (ok) { 
+      await db.from('aspirants').delete().eq('id', id); 
+      toast('Aspirant deleted.', 'success');
+      loadAllData(); 
+    }
+  });
+}
 </script>
 </body>
 </html>
