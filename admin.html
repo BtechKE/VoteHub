@@ -2919,9 +2919,15 @@ async function loadAdminResults() {
 
   if (!cands) return;
   
-  var candMap = {}; cands.forEach(c => candMap[c.code] = c);
+  var candMap = {}; 
   var totalMap = {}; (totals||[]).forEach(t => totalMap[t.candidate_code] = t.total_votes);
   
+  // 1. NORMALIZE THE IMAGE URLS RIGHT HERE
+  cands.forEach(c => {
+    c.photo_url = normalizeImageUrl(c.photo_url); // Converts GitHub blob to CDN
+    candMap[c.code] = c;
+  });
+
   // Build results by position
   var resultsByPos = {}; POSITIONS.forEach(p => resultsByPos[p] = []);
   cands.forEach(c => resultsByPos[c.position].push({ ...c, votes: totalMap[c.code] || 0 }));
@@ -2931,13 +2937,18 @@ async function loadAdminResults() {
   MCA_SUMMARY = wardsList.map(wId => {
     var wCands = wardRes.filter(w => w.ward_id === wId && w.position === 'MCA').map(w => {
       var c = candMap[w.candidate_code] || {};
-      return { code: w.candidate_code, name: c.name, party: c.party, photo: c.photo_url, votes: w.total_votes };
+      return { 
+        code: w.candidate_code, 
+        name: c.name, 
+        party: c.party, 
+        photo_url: c.photo_url, // This is now the normalized CDN link
+        votes: w.total_votes 
+      };
     }).sort((a,b) => b.votes - a.votes);
     
     var wTotal = wCands.reduce((sum, c) => sum + c.votes, 0);
     var wLeader = wCands[0] || null;
     
-    // Fetch ward name from WARDS array
     var wardObj = WARDS.find(w => w.id === wId);
     
     return { 
@@ -3105,8 +3116,8 @@ function renderMCADrillIn() {
     var leader = idx === 0 && c.votes > 0 ? ' leader' : '';
     var rank = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : (idx + 1);
     var initial = c.name ? c.name.charAt(0).toUpperCase() : '?';
-    var photoHtml = c.photo
-      ? '<img src="' + escAttr(c.photo) + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.textContent=\'' + escAttr(initial) + '\'">'
+    var photoHtml = c.photo_url
+      ? '<img src="' + escAttr(c.photo_url) + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.textContent=\'' + escAttr(initial) + '\'">'
       : initial;
 
     return '<div class="result-row' + leader + '">' +
