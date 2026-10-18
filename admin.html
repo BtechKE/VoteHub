@@ -2831,24 +2831,51 @@ function deleteStream(code) {
 function openCandidateModal() {
   var posOpts = POSITIONS.map(p => `<option value="${p}">${p}</option>`).join('');
   var wardOpts = `<option value="">— Select ward —</option>` + WARDS.map(w => `<option value="${w.id}">${esc(w.name)}</option>`).join('');
-  openModal(modalHead('Add Candidate') + `<div class="form-group"><label>Position</label><select id="m_candPosition" onchange="candPosChanged()">${posOpts}</select></div><div class="form-group"><label>Name</label><input id="m_candName"></div><div class="form-group"><label>Party</label><input id="m_candParty"></div><div class="form-group"><label>Code</label><input id="m_candCode"></div><div class="form-group" id="m_candWardWrap" style="display:none;"><label>Ward</label><select id="m_candWard">${wardOpts}</select></div><div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveCandidate()">Save</button></div>`);
+  openModal(modalHead('Add Candidate') + 
+    `<div class="form-group"><label>Position</label><select id="m_candPosition" onchange="candPosChanged()">${posOpts}</select></div>
+     <div class="form-group"><label>Name</label><input id="m_candName"></div>
+     <div class="form-group"><label>Party</label><input id="m_candParty"></div>
+     <div class="form-group"><label>Code</label><input id="m_candCode"></div>
+     <div class="form-group"><label>Photo URL <span class="hint">(GitHub or Drive)</span></label><input id="m_candPhoto" placeholder="https://github.com/..."></div>
+     <div class="form-group"><label>Color <span class="hint">(e.g. #FFC72C)</span></label><input id="m_candColor" placeholder="#A5CF83"></div>
+     <div class="form-group" id="m_candWardWrap" style="display:none;"><label>Ward</label><select id="m_candWard">${wardOpts}</select></div>
+     <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveCandidate()">Save</button></div>`);
 }
+
 function editCandidate(code) {
   var c = CANDIDATES.find(x => x.code === code); if (!c) return;
   var posOpts = POSITIONS.map(p => `<option value="${p}" ${p===c.position?'selected':''}>${p}</option>`).join('');
   var wardOpts = `<option value="">— Select ward —</option>` + WARDS.map(w => `<option value="${w.id}" ${w.id===c.ward_id?'selected':''}>${esc(w.name)}</option>`).join('');
-  openModal(modalHead('Edit Candidate', code) + `<div class="form-group"><label>Position</label><select id="m_candPosition" onchange="candPosChanged()">${posOpts}</select></div><div class="form-group"><label>Name</label><input id="m_candName" value="${escAttr(c.name)}"></div><div class="form-group"><label>Party</label><input id="m_candParty" value="${escAttr(c.party)}"></div><div class="form-group"><label>Code</label><input id="m_candCode" value="${escAttr(c.code)}"></div><div class="form-group" id="m_candWardWrap"><label>Ward</label><select id="m_candWard">${wardOpts}</select></div><div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveCandidate('${esc(code)}')">Save</button></div>`);
+  openModal(modalHead('Edit Candidate', code) + 
+    `<div class="form-group"><label>Position</label><select id="m_candPosition" onchange="candPosChanged()">${posOpts}</select></div>
+     <div class="form-group"><label>Name</label><input id="m_candName" value="${escAttr(c.name)}"></div>
+     <div class="form-group"><label>Party</label><input id="m_candParty" value="${escAttr(c.party)}"></div>
+     <div class="form-group"><label>Code</label><input id="m_candCode" value="${escAttr(c.code)}"></div>
+     <div class="form-group"><label>Photo URL</label><input id="m_candPhoto" value="${escAttr(c.photo_url||'')}"></div>
+     <div class="form-group"><label>Color</label><input id="m_candColor" value="${escAttr(c.color||'')}"></div>
+     <div class="form-group" id="m_candWardWrap"><label>Ward</label><select id="m_candWard">${wardOpts}</select></div>
+     <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveCandidate('${esc(code)}')">Save</button></div>`);
   candPosChanged();
 }
 function candPosChanged() { document.getElementById('m_candWardWrap').style.display = document.getElementById('m_candPosition').value === 'MCA' ? 'block' : 'none'; }
 async function saveCandidate(oldCode) {
-  var pos = document.getElementById('m_candPosition').value, name = document.getElementById('m_candName').value.trim(), party = document.getElementById('m_candParty').value.trim(), code = document.getElementById('m_candCode').value.trim(), ward = document.getElementById('m_candWard').value;
+  var pos = document.getElementById('m_candPosition').value;
+  var name = document.getElementById('m_candName').value.trim();
+  var party = document.getElementById('m_candParty').value.trim();
+  var code = document.getElementById('m_candCode').value.trim();
+  var ward = document.getElementById('m_candWard').value;
+  var photo = document.getElementById('m_candPhoto').value.trim();
+  var color = document.getElementById('m_candColor').value.trim();
+
   if (!name || !party || !code) return toast('Fill all fields.', 'error');
   if (pos === 'MCA' && !ward) return toast('MCA needs a ward.', 'error');
   
-  var payload = { position: pos, name, party, code, ward_id: ward || null };
+  // We save the raw URL, the UI will normalize it when reading
+  var payload = { position: pos, name, party, code, ward_id: ward || null, photo_url: photo, color: color };
+  
   if (oldCode) await db.from('candidates').update(payload).eq('code', oldCode);
   else await db.from('candidates').insert(payload);
+  
   toast('Saved.', 'success'); closeModal(); loadAllData();
 }
 function deleteCandidate(code) {
