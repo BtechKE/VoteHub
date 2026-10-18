@@ -3721,6 +3721,39 @@ function deleteAspirant(id) {
     }
   });
 }
+
+  function normalizeImageUrl(raw) {
+  if (!raw) return '';
+  raw = String(raw).trim();
+  if (!raw) return '';
+
+  // Already a CDN URL
+  if (raw.includes('cdn.jsdelivr.net/gh/') || raw.includes('lh3.googleusercontent.com/d/')) return raw;
+
+  // GitHub blob URL → jsDelivr CDN
+  var m = raw.match(/github\.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)$/);
+  if (m) return 'https://cdn.jsdelivr.net/gh/' + m[1] + '/' + m[2] + '@' + m[3] + '/' + m[4];
+
+  // Raw GitHub URL → jsDelivr CDN
+  m = raw.match(/raw\.githubusercontent\.com\/([^\/]+)\/([^\/]+)\/([^\/]+)\/(.+)$/);
+  if (m) return 'https://cdn.jsdelivr.net/gh/' + m[1] + '/' + m[2] + '@' + m[3] + '/' + m[4];
+
+  // Google Drive Links
+  m = raw.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (m) return 'https://lh3.googleusercontent.com/d/' + m[1];
+  m = raw.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (m) return 'https://lh3.googleusercontent.com/d/' + m[1];
+  m = raw.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if (m) return 'https://lh3.googleusercontent.com/d/' + m[1];
+
+  // Any other direct http/https URL
+  if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
+
+  // Bare Drive ID
+  if (/^[a-zA-Z0-9_-]{20,}$/.test(raw)) return 'https://lh3.googleusercontent.com/d/' + raw;
+
+  return '';
+}
 </script>
 </body>
 </html>
