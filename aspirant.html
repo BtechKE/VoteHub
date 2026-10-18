@@ -1044,35 +1044,72 @@ function switchView(view) {
 
 function renderTracker() {
   if (!TRACKER_DATA) return;
-  var el = document.getElementById('trackerAlert'); var s = TRACKER_DATA.summary;
+  
+  // 1. Alert banner
+  var el = document.getElementById('trackerAlert'); 
+  var s = TRACKER_DATA.summary;
   el.innerHTML = s.staleCount <= 5 ? '' : '<div class="tracker-alert"><i class="fas fa-triangle-exclamation"></i><div><strong>' + s.staleCount + ' streams</strong> haven\'t reported in over 2 hours</div></div>';
 
+  // 2. Summary tiles
   var summaryEl = document.getElementById('trackerSummary');
   var pct = s.totalStreams > 0 ? Math.round(s.completeStreams / s.totalStreams * 100) : 0;
   var lastText = s.lastSubmitAt ? timeAgo(new Date(s.lastSubmitAt).getTime()) : 'Never';
   summaryEl.innerHTML = '<div class="tracker-stat green"><div class="num">' + s.completeStreams + '/' + s.totalStreams + '</div><div class="lbl">Complete</div></div><div class="tracker-stat blue"><div class="num">' + s.pendingStreams + '</div><div class="lbl">Pending</div></div><div class="tracker-stat blue"><div class="num">' + pct + '%</div><div class="lbl">Progress</div></div><div class="tracker-stat"><div class="num small">' + esc(lastText) + '</div><div class="lbl">Last Submit</div></div>';
 
+  // 3. Tell the grid to render
   renderTrackerBreadcrumb();
-  var gridEl = document.getElementById('trackerGrid'); var title = document.getElementById('trackerTitle'); var sub = document.getElementById('trackerSub'); var count = document.getElementById('trackerCount');
+  renderTrackerGrid();
+}
 
+function renderTrackerGrid() {
+  if (!TRACKER_DATA) return;
+
+  var gridEl = document.getElementById('trackerGrid'); 
+  var title = document.getElementById('trackerTitle'); 
+  var sub = document.getElementById('trackerSub'); 
+  var count = document.getElementById('trackerCount');
+
+  // --- WARD LEVEL ---
   if (!TRACKER_WARD) {
     title.textContent = TRACKER_DATA.isMCA ? TRACKER_DATA.scopedWardName + ' Ward · Status' : 'Ward Status';
     sub.textContent = TRACKER_DATA.isMCA ? 'Streams in your ward · all positions' : 'Constituency-wide submission status';
-    var wards = TRACKER_DATA.wards || []; count.textContent = wards.length + ' wards';
-    if (!wards.length) { gridEl.innerHTML = '<div class="empty" style="grid-column:1/-1;"><div class="empty-icon"><i class="fas fa-inbox"></i></div><div class="empty-title">No wards</div></div>'; return; }
-    gridEl.innerHTML = wards.map(renderTrackerWardCard).join(''); return;
+    
+    var wards = TRACKER_DATA.wards || []; 
+    count.textContent = wards.length + ' wards';
+    
+    if (!wards.length) { 
+      gridEl.innerHTML = '<div class="empty" style="grid-column:1/-1;"><div class="empty-icon"><i class="fas fa-inbox"></i></div><div class="empty-title">No wards</div></div>'; 
+      return; 
+    }
+    gridEl.innerHTML = wards.map(renderTrackerWardCard).join(''); 
+    return;
   }
 
-  var ward = (TRACKER_DATA.wards || []).filter(function (w) { return w.wardId === TRACKER_WARD; })[0]; if (!ward) { gridEl.innerHTML = ''; return; }
+  // --- CENTRE LEVEL ---
+  var ward = (TRACKER_DATA.wards || []).filter(function (w) { return w.wardId === TRACKER_WARD; })[0]; 
+  if (!ward) { gridEl.innerHTML = ''; return; }
 
   if (!TRACKER_CENTRE) {
-    title.textContent = ward.wardName + ' Centres'; sub.textContent = ward.streamsComplete + ' of ' + ward.streamsTotal + ' streams complete'; count.textContent = ward.centres.length + ' centres';
-    if (!ward.centres.length) { gridEl.innerHTML = '<div class="empty" style="grid-column:1/-1;"><div class="empty-title">No centres</div></div>'; return; }
-    gridEl.innerHTML = ward.centres.map(renderTrackerCentreCard).join(''); return;
+    title.textContent = ward.wardName + ' Centres'; 
+    sub.textContent = ward.streamsComplete + ' of ' + ward.streamsTotal + ' streams complete'; 
+    count.textContent = ward.centres.length + ' centres';
+    
+    if (!ward.centres.length) { 
+      gridEl.innerHTML = '<div class="empty" style="grid-column:1/-1;"><div class="empty-title">No centres</div></div>'; 
+      return; 
+    }
+    gridEl.innerHTML = ward.centres.map(renderTrackerCentreCard).join(''); 
+    return;
   }
 
-  var centre = ward.centres.filter(function (c) { return c.centreId === TRACKER_CENTRE; })[0]; if (!centre) { gridEl.innerHTML = ''; return; }
-  title.textContent = centre.centreName + ' Streams'; sub.textContent = centre.streamsComplete + ' of ' + centre.streamsTotal + ' streams complete · all positions'; count.textContent = centre.streams.length + ' streams';
+  // --- STREAM LEVEL ---
+  var centre = ward.centres.filter(function (c) { return c.centreId === TRACKER_CENTRE; })[0]; 
+  if (!centre) { gridEl.innerHTML = ''; return; }
+  
+  title.textContent = centre.centreName + ' Streams'; 
+  sub.textContent = centre.streamsComplete + ' of ' + centre.streamsTotal + ' streams complete · all positions'; 
+  count.textContent = centre.streams.length + ' streams';
+  
   gridEl.innerHTML = centre.streams.map(renderTrackerStreamCard).join('');
 }
 
