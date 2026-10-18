@@ -3818,13 +3818,13 @@ async function toggleAspirant(id) {
   var person = ASPIRANTS.find(x => x.id === id);
   if (!person) return;
   
-  // Toggle the boolean state
-  var newStatus = !person.is_active;
-  const { error } = await db.from('aspirants').update({ is_active: newStatus }).eq('id', id);
+  // Toggle is_spectator (true becomes false, false becomes true)
+  var newStatus = !person.is_spectator;
+  const { error } = await db.from('aspirants').update({ is_spectator: newStatus }).eq('id', id);
   
   if (error) return toast('Failed to toggle status.', 'error');
   
-  toast('Aspirant ' + (newStatus ? 'Activated' : 'Deactivated') + '.', 'success');
+  toast('Aspirant ' + (newStatus ? 'Deactivated' : 'Activated') + '.', 'success');
   loadAllData();
 }
 
