@@ -546,7 +546,7 @@ async function goToEntry(streamCode, position) {
     if (position === 'MCA') query = query.eq('ward_id', currentStream.wardId);
     
     const { data: cands } = await query;
-    currentCandidates = cands || [];
+    currentCandidates = (cands || []).map(c => ({ ...c, photo_url: normalizeImageUrl(c.photo_url) }));
     renderEntryForm();
   } catch (e) {
     toast('Failed to load candidates.', 'error');
@@ -563,10 +563,13 @@ function renderEntryForm() {
   document.getElementById('candidateEntryList').innerHTML = currentCandidates.map(c => {
     var val = (draft && draft[c.code]) ? String(draft[c.code]) : '';
     var cls = val !== '' ? ' has-vote' : ' missing';
-    return '<div class="candidate-entry' + cls + '" data-code="' + c.code + '">' +
-      '<div class="candidate-entry-info"><div class="candidate-entry-name">' + esc(c.name) + '</div><div class="candidate-entry-party">' + esc(c.party) + '</div></div>' +
-      '<input type="number" inputmode="numeric" min="0" max="700" class="vote-input" placeholder="—" value="' + val + '" oninput="onVoteInput(this)" onfocus="this.select()"></div>';
-  }).join('');
+   // Replace the inside of the .map in renderEntryForm with this:
+return '<div class="candidate-entry' + cls + '" data-code="' + c.code + '">' +
+  '<div class="entry-avatar">' + 
+    (c.photo_url ? '<img src="' + c.photo_url + '" onerror="this.style.display=\'none\'">' : c.name.charAt(0)) + 
+  '</div>' +
+  '<div class="candidate-entry-info"><div class="candidate-entry-name">' + esc(c.name) + '</div><div class="candidate-entry-party">' + esc(c.party) + '</div></div>' +
+  '<input type="number" inputmode="numeric" min="0" max="700" class="vote-input" placeholder="—" value="' + val + '" oninput="onVoteInput(this)" onfocus="this.select()"></div>';
   updateEntryTotal();
 }
 
