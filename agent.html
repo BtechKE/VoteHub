@@ -404,7 +404,7 @@ async function loadStreams(silent) {
   try {
     // 1. Fetch streams
     const { data: streamsData } = await db.from('streams')
-        .select('code, stream_number, centre_id, centres(name)')
+        .select('code, stream_number, centre_id, ward_id, centres(name)')
         .in('code', USER.assigned_streams || []);
     
     // 2. Fetch existing submissions for these streams
@@ -436,9 +436,13 @@ async function loadStreams(silent) {
 }
 
 async function loadCountingStatus() {
-  // We'll mock this for now as true, but later you can fetch from a 'config' table
-  SUBMISSION_OPEN = true;
-  document.getElementById('closedBanner').classList.remove('active');
+  try {
+    const { data } = await db.from('config').select('value').eq('key', 'SubmissionOpen').single();
+    SUBMISSION_OPEN = (data && data.value === 'TRUE');
+    const banner = document.getElementById('closedBanner');
+    if (SUBMISSION_OPEN) banner.classList.remove('active');
+    else banner.classList.add('active');
+  } catch(e) { console.error(e); }
 }
 
 // ================================================================
@@ -620,13 +624,23 @@ async function submitNow() {
   
   var streamCode = currentStream.code;
   var position = currentPosition;
-  var rowsToInsert = collectVotes().map(v => ({
-    stream_code: streamCode, position: position, candidate_code: v.candidateCode, votes: v.votes, submitted_by: USER.name
-  }));
+  var payload = collectVotes(); // Returns array of { candidateCode, votes }
 
   try {
-    const { error } = await db.from('results').insert(rowsToInsert);
+    // Call the secure Postgres function instead of direct insert
+    const { data, error } = await db.rpc('submit_election_results', {
+      p_stream_code: streamCode,
+      p_position: position,
+      p_votes: payload
+    });
+
     if (error) throw error;
+
+    if (!data.success) {
+      toast(data.message, 'error');
+      btn.disabled = false; btn.innerHTML = '<i class="fas fa-lock"></i> Submit &amp; Lock';
+      return;
+    }
 
     btn.disabled = false; btn.innerHTML = '<i class="fas fa-lock"></i> Submit &amp; Lock';
     clearDraft(streamCode, position);
@@ -634,11 +648,11 @@ async function submitNow() {
     toast('✅ ' + position + ' submitted.', 'success');
     advanceAfterSubmit(streamCode, position);
   } catch (e) {
+    console.error(e);
     btn.disabled = false; btn.innerHTML = '<i class="fas fa-lock"></i> Submit &amp; Lock';
-    toast(e.message || 'Submission failed.', 'error');
+    toast('Connection error. Try again.', 'error');
   }
 }
-
 function advanceAfterSubmit(streamCode, position) {
   var statuses = STATUSES[streamCode] || {};
   var next = POSITIONS.find(p => p !== position && statuses[p]?.status !== 'submitted');
