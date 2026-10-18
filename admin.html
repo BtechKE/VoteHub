@@ -2507,16 +2507,31 @@ function switchTab(name) {
 //  SYSTEM STATUS & CONFIG
 // ================================================================
 async function loadSystemStatus() {
-  const { data } = await db.from('config').select('*');
+  // Fetch data and catch any errors
+  const { data, error } = await db.from('config').select('*');
+  
+  if (error) {
+    console.error("Load error:", error);
+    return toast('Failed to load configuration.', 'error');
+  }
+  
   if (!data) return;
   
+  // Convert array of rows into a single object { Constituency: "Westlands", ... }
   CONFIG = {};
   data.forEach(r => CONFIG[r.key] = r.value);
 
+  // 1. Update Submission Pill
   var pill = document.getElementById('submissionPill');
-  if (CONFIG.SubmissionOpen === 'TRUE') { pill.className = 'status-pill open'; pill.textContent = 'Open'; } 
-  else { pill.className = 'status-pill'; pill.textContent = 'Closed'; }
+  if (CONFIG.SubmissionOpen === 'TRUE') { 
+    pill.className = 'status-pill open'; 
+    pill.textContent = 'Open'; 
+  } else { 
+    pill.className = 'status-pill'; 
+    pill.textContent = 'Closed'; 
+  }
 
+  // 2. Update Countdown
   if (CONFIG.CountingStartTime) {
     try {
       var dt = new Date(CONFIG.CountingStartTime);
@@ -2525,6 +2540,7 @@ async function loadSystemStatus() {
   }
   startCountdown(CONFIG.CountingStartTime);
 
+  // 3. Fill in the Settings Form inputs
   document.getElementById('constituencyLabel').textContent = CONFIG.Constituency ? CONFIG.Constituency + ' · ' + CONFIG.County : 'Configure your election';
   document.getElementById('cfgConstituency').value = CONFIG.Constituency || '';
   document.getElementById('cfgCounty').value = CONFIG.County || '';
@@ -3582,24 +3598,25 @@ async function saveElectionSettings() {
   var county = document.getElementById('cfgCounty').value.trim();
   var date = document.getElementById('cfgElectionDate').value;
 
-  try {
-    await db.from('config').upsert([
-      { key: 'Constituency', value: c },
-      { key: 'County', value: county },
-      { key: 'ElectionDate', value: date || '' }
-    ]);
-    
-    // Update the label instantly
-    CONFIG.Constituency = c;
-    CONFIG.County = county;
-    document.getElementById('constituencyLabel').textContent = c ? c + ' · ' + county : 'Configure your election';
-    
-    toast('Settings saved.', 'success');
-  } catch (e) {
-    toast('Failed to save settings.', 'error');
-  }
-}
+  // Save to database. onConflict: 'key' ensures we UPDATE, not duplicate
+  const { error } = await db.from('config').upsert([
+    { key: 'Constituency', value: c },
+    { key: 'County', value: county },
+    { key: 'ElectionDate', value: date || '' }
+  ], { onConflict: 'key' });
 
+  if (error) {
+    console.error("Save error:", error);
+    return toast('Failed to save: ' + error.message, 'error');
+  }
+  
+  // Update the UI immediately
+  CONFIG.Constituency = c;
+  CONFIG.County = county;
+  document.getElementById('constituencyLabel').textContent = c ? c + ' · ' + county : 'Configure your election';
+  
+  toast('Settings saved successfully.', 'success');
+}
 async function saveAdminCredentials() {
   var id = document.getElementById('cfgAdminID').value.trim();
   var pw = document.getElementById('cfgAdminPass').value;
