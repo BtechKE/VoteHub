@@ -728,9 +728,69 @@ function toast(msg, type) {
   document.getElementById('toasts').appendChild(el);
   setTimeout(() => el.remove(), 4000);
 }
+function thConfirm(opts) {
+  return new Promise(function (resolve) {
+    opts = opts || {};
+    var tone = opts.tone || 'warn';
+    var single = !!opts.alertOnly;
+    var iconMap = { warn: 'fa-exclamation-triangle', danger: 'fa-sign-out-alt', info: 'fa-info-circle' };
+    var icon = opts.icon || iconMap[tone] || 'fa-question-circle';
+    var confirmCls = tone === 'danger' ? 'th-btn-danger' : 'th-btn-primary';
 
+    var actions = single
+      ? '<button class="th-btn th-btn-primary" data-act="ok">' + esc(opts.confirmText || 'OK') + '</button>'
+      : '<button class="th-btn th-btn-ghost" data-act="cancel">' + esc(opts.cancelText || 'Cancel') + '</button>' +
+        '<button class="th-btn ' + confirmCls + '" data-act="ok">' + esc(opts.confirmText || 'Confirm') + '</button>';
+
+    var wrap = document.createElement('div');
+    wrap.className = 'th-modal-bg';
+    wrap.innerHTML =
+      '<div class="th-modal">' +
+        '<div class="th-modal-icon ' + tone + '"><i class="fas ' + icon + '"></i></div>' +
+        '<div class="th-modal-title">' + esc(opts.title || 'Confirm') + '</div>' +
+        (opts.message ? '<div class="th-modal-msg">' + opts.message + '</div>' : '') +
+        '<div class="th-modal-actions' + (single ? ' single' : '') + '">' + actions + '</div>' +
+      '</div>';
+
+    document.body.appendChild(wrap);
+    requestAnimationFrame(function () { wrap.classList.add('active'); });
+
+    var resolved = false;
+    function close(val) {
+      if (resolved) return;
+      resolved = true;
+      wrap.classList.remove('active');
+      setTimeout(function () { if (wrap.parentElement) wrap.remove(); }, 220);
+      document.removeEventListener('keydown', onKey);
+      resolve(val);
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') close(false);
+      else if (e.key === 'Enter') close(true);
+    }
+    wrap.addEventListener('click', function (e) {
+      if (e.target === wrap) return close(false);
+      var act = e.target.closest('[data-act]');
+      if (!act) return;
+      close(act.dataset.act === 'ok');
+    });
+    document.addEventListener('keydown', onKey);
+    setTimeout(function () { var ok = wrap.querySelector('[data-act="ok"]'); if (ok) ok.focus(); }, 60);
+  });
+}
 function doLogout() {
-  if(confirm('Sign out?')) { db.auth.signOut().then(() => window.location.href = 'index.html'); }
+  thConfirm({
+    title: 'Sign out?',
+    message: 'Any unsaved entries will be kept as drafts on this device.',
+    confirmText: 'Sign Out',
+    cancelText: 'Stay',
+    tone: 'danger',
+    icon: 'fa-sign-out-alt'
+  }).then(function (ok) {
+    if (ok) {
+      db.auth.signOut().then(() => window.location.href = 'index.html');
+    }
+  });
 }
 
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
