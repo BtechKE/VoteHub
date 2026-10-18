@@ -2888,8 +2888,50 @@ function deleteCandidate(code) {
 //  AGENTS & ASPIRANTS (Using RPC)
 // ================================================================
 function openAgentModal() {
-  var streamOpts = STREAMS.map(s => `<label style="display:flex;gap:6px;font-size:12.5px;"><input type="checkbox" class="agent-stream-cb" value="${s.code}"> ${s.code}</label>`).join('');
-  openModal(modalHead('Add Agent') + `<div class="form-group"><label>Name</label><input id="m_agentName"></div><div class="form-group"><label>Phone</label><input id="m_agentPhone"></div><div class="form-group"><label>Streams</label><div style="max-height:180px;overflow-y:auto;">${streamOpts}</div></div><div class="form-group"><label>Email (for login)</label><input id="m_agentEmail" type="email"></div><div class="form-group"><label>Password</label><input id="m_agentPass" type="password"></div><div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveAgent()">Save</button></div>`);
+  var streamOpts = STREAMS.map(function(s) {
+    return '<label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 0;cursor:pointer;">' +
+      '<input type="checkbox" class="agent-stream-cb" value="' + escAttr(s.code) + '" style="width:auto; margin:0;">' +
+      '<span>' + esc(s.code) + '</span></label>';
+  }).join('');
+
+  openModal(modalHead('Add Agent') + `
+    <div class="form-group"><label>Name</label><input id="m_agentName"></div>
+    <div class="form-group"><label>Phone</label><input id="m_agentPhone"></div>
+    <div class="form-group"><label>Assign Streams</label>
+      <div style="max-height:180px;overflow-y:auto;padding:8px 12px;border:1.5px solid var(--border-strong);border-radius:10px;background:var(--bg);">
+        ${streamOpts || '<div style="color:var(--text-faint);font-size:12.5px;">No streams available — generate them first.</div>'}
+      </div>
+    </div>
+    <div class="form-group"><label>Email (for login)</label><input id="m_agentEmail" type="email"></div>
+    <div class="form-group"><label>Password</label><input id="m_agentPass" type="password"></div>
+    <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveAgent()">Save</button></div>
+  `);
+}
+  function editAgent(id) {
+  var a = AGENTS.find(x => x.id === id); if (!a) return;
+  
+  // Ensure we parse the array correctly (handles both text[] and comma-separated strings)
+  var assigned = Array.isArray(a.assigned_streams) 
+    ? a.assigned_streams 
+    : String(a.assigned_streams || '').split(',').map(s => s.trim());
+
+  var streamOpts = STREAMS.map(function(s) {
+    var checked = assigned.includes(s.code) ? 'checked' : '';
+    return '<label style="display:flex;align-items:center;gap:8px;font-size:13px;padding:6px 0;cursor:pointer;">' +
+      '<input type="checkbox" class="agent-stream-cb" value="' + escAttr(s.code) + '" ' + checked + ' style="width:auto; margin:0;">' +
+      '<span>' + esc(s.code) + '</span></label>';
+  }).join('');
+
+  openModal(modalHead('Edit Agent', id) + `
+    <div class="form-group"><label>Name</label><input id="m_agentName" value="${escAttr(a.name)}"></div>
+    <div class="form-group"><label>Phone</label><input id="m_agentPhone" value="${escAttr(a.phone||'')}"></div>
+    <div class="form-group"><label>Assign Streams</label>
+      <div style="max-height:180px;overflow-y:auto;padding:8px 12px;border:1.5px solid var(--border-strong);border-radius:10px;background:var(--bg);">
+        ${streamOpts || '<div style="color:var(--text-faint);font-size:12.5px;">No streams available.</div>'}
+      </div>
+    </div>
+    <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveAgent('${esc(id)}')">Save</button></div>
+  `);
 }
 async function saveAgent() {
   var name = document.getElementById('m_agentName').value.trim();
