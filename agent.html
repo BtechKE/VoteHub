@@ -560,17 +560,24 @@ function renderEntryForm() {
   }
 
   var draft = loadDraft(currentStream.code, currentPosition);
-  document.getElementById('candidateEntryList').innerHTML = currentCandidates.map(c => {
+  
+  // Correctly closing the .map() and adding .join('')
+  var html = currentCandidates.map(c => {
     var val = (draft && draft[c.code]) ? String(draft[c.code]) : '';
     var cls = val !== '' ? ' has-vote' : ' missing';
-   // Replace the inside of the .map in renderEntryForm with this:
-return '<div class="candidate-entry' + cls + '" data-code="' + c.code + '">' +
-  '<div class="entry-avatar">' + 
-    (c.photo_url ? '<img src="' + c.photo_url + '" onerror="this.style.display=\'none\'">' : c.name.charAt(0)) + 
-  '</div>' +
-  '<div class="candidate-entry-info"><div class="candidate-entry-name">' + esc(c.name) + '</div><div class="candidate-entry-party">' + esc(c.party) + '</div></div>' +
-  '<input type="number" inputmode="numeric" min="0" max="700" class="vote-input" placeholder="—" value="' + val + '" oninput="onVoteInput(this)" onfocus="this.select()"></div>';
-  updateEntryTotal();
+    var initial = c.name ? c.name.charAt(0).toUpperCase() : '?';
+    var photoHtml = c.photo_url ? '<img src="' + c.photo_url + '" onerror="this.style.display=\'none\'">' : initial;
+
+    return '<div class="candidate-entry' + cls + '" data-code="' + c.code + '">' +
+      '<div class="entry-avatar">' + photoHtml + '</div>' +
+      '<div class="candidate-entry-info"><div class="candidate-entry-name">' + esc(c.name) + '</div><div class="candidate-entry-party">' + esc(c.party) + '</div></div>' +
+      '<input type="number" inputmode="numeric" min="0" max="700" class="vote-input" placeholder="—" value="' + val + '" oninput="onVoteInput(this)" onfocus="this.select()"></div>';
+  }).join(''); // <--- THIS WAS MISSING
+
+  document.getElementById('candidateEntryList').innerHTML = html;
+  
+  // This needs to be called AFTER the inputs are put on the screen
+  updateEntryTotal(); 
 }
 
 function onVoteInput(input) {
