@@ -2548,6 +2548,7 @@ async function loadSystemStatus() {
   document.getElementById('cfgAdminID').value = CONFIG.AdminID || 'admin';
 }
 
+
 async function updateConfig(key, value) {
   const { error } = await db.from('config').upsert({ key: key, value: String(value) });
   if (error) console.error('Config update failed:', error);
