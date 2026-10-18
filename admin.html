@@ -2881,41 +2881,232 @@ async function saveAspirant() {
 // ================================================================
 //  RESULTS & TRACKER
 // ================================================================
-var RESULTS_DATA = null, MCA_SUMMARY = null, MCA_VIEW_WARD = '', CURRENT_RESULT_POS = 'President';
+// ================================================================
+//  ADMIN — RESULTS TAB (ward-aware MCA)
+// ================================================================
+var RESULTS_DATA = null;
+var MCA_SUMMARY = null;
+var MCA_VIEW_WARD = '';   // '' = grid view, wardId = drill-in
+var CURRENT_RESULT_POS = 'President';
 
 async function loadAdminResults() {
-  const [{ data: cands }, { data: totals }, { data: wardRes }, { data: streamsData }, { data: resultsData }] = await Promise.all([
-    db.from('candidates').select('*'), db.from('candidate_totals').select('*'), db.from('ward_results').select('*'), db.from('streams').select('code'), db.from('results').select('stream_code')
+  const [ { data: cands }, { data: totals }, { data: wardRes }, { data: streamsData }, { data: resultsData } ] = await Promise.all([
+    db.from('candidates').select('*'), 
+    db.from('candidate_totals').select('*'), 
+    db.from('ward_results').select('*'), 
+    db.from('streams').select('code'), 
+    db.from('results').select('stream_code')
   ]);
-  
+
   if (!cands) return;
   
   var candMap = {}; cands.forEach(c => candMap[c.code] = c);
   var totalMap = {}; (totals||[]).forEach(t => totalMap[t.candidate_code] = t.total_votes);
   
+  // Build results by position
   var resultsByPos = {}; POSITIONS.forEach(p => resultsByPos[p] = []);
   cands.forEach(c => resultsByPos[c.position].push({ ...c, votes: totalMap[c.code] || 0 }));
+
+  // Build MCA Summary by Ward
+  var wardsList = [...new Set(wardRes.filter(w => w.position === 'MCA').map(w => w.ward_id))];
+  MCA_SUMMARY = wardsList.map(wId => {
+    var wCands = wardRes.filter(w => w.ward_id === wId && w.position === 'MCA').map(w => {
+      var c = candMap[w.candidate_code] || {};
+      return { code: w.candidate_code, name: c.name, party: c.party, photo: c.photo_url, votes: w.total_votes };
+    }).sort((a,b) => b.votes - a.votes);
+    
+    var wTotal = wCands.reduce((sum, c) => sum + c.votes, 0);
+    var wLeader = wCands[0] || null;
+    
+    // Fetch ward name from WARDS array
+    var wardObj = WARDS.find(w => w.id === wId);
+    
+    return { 
+      wardId: wId, 
+      wardName: wardObj ? wardObj.name : wId, 
+      candidates: wCands, 
+      leader: wLeader, 
+      totalVotes: wTotal, 
+      leaderPct: wTotal > 0 && wLeader ? ((wLeader.votes / wTotal) * 100).toFixed(1) : '0.0' 
+    };
+  }).sort((a,b) => a.wardName.localeCompare(b.wardName));
+
+  RESULTS_DATA = { 
+    results: resultsByPos, 
+    reported: new Set((resultsData||[]).map(r => r.stream_code)).size, 
+    totalStreams: (streamsData||[]).length 
+  };
   
-  RESULTS_DATA = { results: resultsByPos, reported: new Set((resultsData||[]).map(r => r.stream_code)).size, totalStreams: (streamsData||[]).length };
-  
-  document.getElementById('resultsSub').textContent = RESULTS_DATA.reported + ' of ' + RESULTS_DATA.totalStreams + ' streams reported';
+  document.getElementById('resultsSub').textContent = RESULTS_DATA.reported + ' of ' + RESULTS_DATA.totalStreams + ' streams have reported · live';
   renderResultTabs();
   renderResults();
 }
 
 function renderResultTabs() {
-  document.getElementById('resultsPosTabs').innerHTML = POSITIONS.map(pos => `<button class="position-tab ${pos===CURRENT_RESULT_POS?'active':''}" onclick="switchResultPos('${pos}')">${pos}</button>`).join('');
+  document.getElementById('resultsPosTabs').innerHTML = POSITIONS.map(pos => {
+    var list = (RESULTS_DATA.results && RESULTS_DATA.results[pos]) || [];
+    var total = list.reduce(function (s, r) { return s + r.votes; }, 0);
+    var active = pos === CURRENT_RESULT_POS ? ' active' : '';
+    var count = (pos === 'MCA') ? (MCA_SUMMARY ? MCA_SUMMARY.length : 0) : list.length;
+    var label = (pos === 'MCA') ? count + ' wards' : total.toLocaleString() + ' votes';
+    
+    return '<button class="position-tab' + active + '" onclick="switchResultPos(\'' + escAttr(pos) + '\')">' +
+      esc(pos) + '<span class="pcount">· ' + label + '</span></button>';
+  }).join('');
 }
 
-function switchResultPos(pos) { CURRENT_RESULT_POS = pos; loadAdminResults(); }
+function switchResultPos(pos) {
+  CURRENT_RESULT_POS = pos;
+  if (pos === 'MCA') MCA_VIEW_WARD = ''; // reset to grid view
+  loadAdminResults();
+}
 
 function renderResults() {
   var el = document.getElementById('resultsList');
-  var list = RESULTS_DATA.results[CURRENT_RESULT_POS] || [];
-  if (!list.length) { el.innerHTML = `<div class="empty">No results yet.</div>`; return; }
-  
-  var total = list.reduce((s, r) => s + r.votes, 0);
-  el.innerHTML = list.sort((a,b) => b.votes - a.votes).map((c, idx) => `<div class="result-row ${idx===0?'leader':''}"><div class="result-rank">${idx+1}</div><div class="result-info"><div class="result-name">${esc(c.name)}</div><div class="result-party">${esc(c.party)}</div></div><div class="result-votes">${c.votes}</div></div>`).join('');
+  if (!RESULTS_DATA) return;
+
+  // === MCA special case ===
+  if (CURRENT_RESULT_POS === 'MCA') {
+    if (MCA_VIEW_WARD) return renderMCADrillIn();
+    return renderMCAGrid();
+  }
+
+  // === All other positions: ranked list ===
+  var list = (RESULTS_DATA.results && RESULTS_DATA.results[CURRENT_RESULT_POS]) || [];
+  if (!list.length) {
+    el.innerHTML = '<div class="empty"><i class="fas fa-inbox"></i>' +
+      '<div style="font-weight:600;color:var(--text);margin-bottom:4px;">No results for ' + esc(CURRENT_RESULT_POS) + ' yet</div>' +
+      '<div>Results will appear as agents submit tallies.</div></div>';
+    return;
+  }
+
+  var total = list.reduce(function (s, r) { return s + r.votes; }, 0);
+  var sorted = list.slice().sort(function (a, b) { return b.votes - a.votes; });
+
+  el.innerHTML = sorted.map(function (c, idx) {
+    var pct = total > 0 ? (c.votes / total * 100) : 0;
+    var leader = idx === 0 && c.votes > 0 ? ' leader' : '';
+    var rank = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : (idx + 1);
+    var initial = c.name ? c.name.charAt(0).toUpperCase() : '?';
+    var photoHtml = c.photo_url
+      ? '<img src="' + escAttr(c.photo_url) + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.textContent=\'' + escAttr(initial) + '\'">'
+      : initial;
+
+    return '<div class="result-row' + leader + '">' +
+      '<div class="avatar-wrap' + (c.photo_url ? '' : ' no-photo') + '">' +
+        photoHtml + '<span class="avatar-rank">' + rank + '</span>' +
+      '</div>' +
+      '<div class="result-info">' +
+        '<div class="result-name">' + esc(c.name) + '</div>' +
+        '<div class="result-party">' + esc(c.party) + '</div>' +
+      '</div>' +
+      '<div class="result-bar-track"><div class="result-bar-fill" style="width:' + pct.toFixed(1) + '%"></div></div>' +
+      '<div class="result-votes">' + c.votes.toLocaleString() + '</div>' +
+      '<div class="result-pct">' + pct.toFixed(1) + '%</div>' +
+    '</div>';
+  }).join('');
+}
+
+// --- MCA grid view: one card per ward, showing the leader ---
+function renderMCAGrid() {
+  var el = document.getElementById('resultsList');
+  if (!MCA_SUMMARY || !MCA_SUMMARY.length) {
+    el.innerHTML = '<div class="empty"><i class="fas fa-inbox"></i><div style="font-weight:600;">No MCA candidates configured</div></div>';
+    return;
+  }
+
+  var html = '<div class="mca-grid">';
+  MCA_SUMMARY.forEach(function (w) {
+    var hasData = w.candidates.length > 0;
+    var leaderBlock;
+    
+    if (hasData && w.leader) {
+      leaderBlock =
+        '<div class="mca-leader">' +
+          '<div class="mca-crown">🥇</div>' +
+          '<div class="mca-leader-name">' + esc(w.leader.name) + '</div>' +
+          '<div class="mca-leader-party">' + esc(w.leader.party) + '</div>' +
+          '<div class="mca-leader-stats">' +
+            '<span class="votes">' + w.leader.votes.toLocaleString() + '</span>' +
+            '<span class="sep">·</span>' +
+            '<span class="pct">' + w.leaderPct + '%</span>' +
+          '</div>' +
+        '</div>';
+    } else {
+      leaderBlock =
+        '<div class="mca-leader empty-leader">' +
+          '<i class="fas fa-hourglass-half"></i>' +
+          '<div class="mca-leader-name">No results yet</div>' +
+          '<div class="mca-leader-party">Waiting for agents</div>' +
+        '</div>';
+    }
+
+    html += '<div class="mca-card" onclick="drillIntoMCAWard(\'' + escAttr(w.wardId) + '\')">' +
+      '<div class="mca-card-head">' +
+        '<div class="mca-ward-name">' + esc(w.wardName) + '</div>' +
+        '<div class="mca-cand-count">' + w.candidates.length + ' candidate' + (w.candidates.length === 1 ? '' : 's') + '</div>' +
+      '</div>' + leaderBlock +
+      (hasData ? '<button class="mca-view-btn">View full race <i class="fas fa-arrow-right"></i></button>' : '') +
+    '</div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+// --- MCA drill-in: single ward, full ranked list ---
+function renderMCADrillIn() {
+  var el = document.getElementById('resultsList');
+  var ward = MCA_SUMMARY && MCA_SUMMARY.find(function (w) { return w.wardId === MCA_VIEW_WARD; });
+
+  if (!ward) { el.innerHTML = '<div class="empty">Ward not found.</div>'; return; }
+
+  var sorted = ward.candidates.slice().sort(function (a, b) { return b.votes - a.votes; });
+  var total = sorted.reduce(function (s, r) { return s + r.votes; }, 0);
+
+  var header = '<div class="mca-drill-head">' +
+    '<button class="btn btn-ghost btn-sm" onclick="backToMCAGrid()"><i class="fas fa-arrow-left"></i> All wards</button>' +
+    '<div class="mca-drill-title">' +
+      '<div class="mca-drill-ward">' + esc(ward.wardName) + '</div>' +
+      '<div class="mca-drill-sub">MCA race · ' + sorted.length + ' candidate' + (sorted.length === 1 ? '' : 's') + ' · ' + total.toLocaleString() + ' total votes</div>' +
+    '</div></div>';
+
+  if (!sorted.length) {
+    el.innerHTML = header + '<div class="empty" style="margin-top:16px;"><i class="fas fa-inbox"></i><div>No results submitted for this ward yet.</div></div>';
+    return;
+  }
+
+  var rows = sorted.map(function (c, idx) {
+    var pct = total > 0 ? (c.votes / total * 100) : 0;
+    var leader = idx === 0 && c.votes > 0 ? ' leader' : '';
+    var rank = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : (idx + 1);
+    var initial = c.name ? c.name.charAt(0).toUpperCase() : '?';
+    var photoHtml = c.photo
+      ? '<img src="' + escAttr(c.photo) + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.textContent=\'' + escAttr(initial) + '\'">'
+      : initial;
+
+    return '<div class="result-row' + leader + '">' +
+      '<div class="avatar-wrap' + (c.photo ? '' : ' no-photo') + '">' + photoHtml + '<span class="avatar-rank">' + rank + '</span></div>' +
+      '<div class="result-info">' +
+        '<div class="result-name">' + esc(c.name) + '</div>' +
+        '<div class="result-party">' + esc(c.party) + '</div>' +
+      '</div>' +
+      '<div class="result-bar-track"><div class="result-bar-fill" style="width:' + pct.toFixed(1) + '%"></div></div>' +
+      '<div class="result-votes">' + c.votes.toLocaleString() + '</div>' +
+      '<div class="result-pct">' + pct.toFixed(1) + '%</div>' +
+    '</div>';
+  }).join('');
+
+  el.innerHTML = header + rows;
+}
+
+function drillIntoMCAWard(wardId) {
+  MCA_VIEW_WARD = wardId;
+  renderResults();
+}
+
+function backToMCAGrid() {
+  MCA_VIEW_WARD = '';
+  renderResults();
 }
 
 var TRACKER_DATA = null;
