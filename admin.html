@@ -3397,6 +3397,181 @@ function closeSheet() {
 // ================================================================
 //  EXPORT PDF & OTHERS (Mocked for UI stability)
 // ================================================================
+
+  // ================================================================
+//  EXPORT PDF
+// ================================================================
+var exportSelectedPos = null;
+
+function openExportModal() {
+  exportSelectedPos = null;
+  document.querySelectorAll('.export-opt').forEach(function (b) { b.classList.remove('active'); });
+  document.getElementById('exportGoBtn').disabled = true;
+  document.getElementById('exportModal').classList.add('active');
+}
+
+function closeExportModal() {
+  document.getElementById('exportModal').classList.remove('active');
+}
+
+function selectExportPos(pos) {
+  exportSelectedPos = pos;
+  document.querySelectorAll('.export-opt').forEach(function (b) { b.classList.toggle('active', b.dataset.pos === pos); });
+  document.getElementById('exportGoBtn').disabled = false;
+}
+
+async function generatePDF() {
+  if (!exportSelectedPos) return;
+  var pos = exportSelectedPos;
+  var btn = document.getElementById('exportGoBtn');
+  
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating…';
+
+  try {
+    // 1. Fetch all necessary data from Supabase
+    const [ { data: cands }, { data: totals }, { data: wardRes }, { data: streamsData }, { data: resultsData }, { data: wardsData } ] = await Promise.all([
+      db.from('candidates').select('*').eq('position', pos), 
+      db.from('candidate_totals').select('*'), 
+      db.from('ward_results').select('*').eq('position', pos), 
+      db.from('streams').select('code, ward_id'), 
+      db.from('results').select('stream_code').eq('position', pos),
+      db.from('wards').select('*')
+    ]);
+
+    // 2. Process data for the PDF
+    var candMap = {}; cands.forEach(c => candMap[c.code] = c);
+    var totalMap = {}; (totals||[]).forEach(t => totalMap[t.candidate_code] = t.total_votes);
+
+    var leaderboard = cands.map(c => ({
+      name: c.name, party: c.party, votes: totalMap[c.code] || 0
+    })).sort((a,b) => b.votes - a.votes);
+    
+    var totalVotes = leaderboard.reduce((s, c) => s + c.votes, 0);
+
+    var wardsList = (wardsData || []).map(w => {
+      var wCands = (wardRes||[]).filter(wr => wr.ward_id === w.id).map(wr => {
+        var c = candMap[wr.candidate_code] || {};
+        return { name: c.name, party: c.party, votes: wr.total_votes };
+      }).sort((a,b) => b.votes - a.votes);
+      var wTotal = wCands.reduce((sum, c) => sum + c.votes, 0);
+      return { wardName: w.name, candidates: wCands, totalVotes: wTotal };
+    }).filter(w => w.candidates.length > 0);
+
+    var data = {
+      position: pos,
+      constituency: CONFIG.Constituency || 'Constituency',
+      county: CONFIG.County || '',
+      leaderboard: leaderboard,
+      totalVotes: totalVotes,
+      wards: wardsList,
+      reported: new Set((resultsData||[]).map(r => r.stream_code)).size,
+      totalStreams: (streamsData||[]).length,
+      generatedAt: new Date().toISOString()
+    };
+
+    // 3. Build and save the PDF
+    buildPositionPDF(data);
+    
+    closeExportModal();
+    toast('Report downloaded.', 'success');
+  } catch (e) {
+    console.error(e);
+    toast('PDF generation failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-file-pdf"></i> Generate PDF';
+  }
+}
+
+function buildPositionPDF(data) {
+  var jsPDF = window.jspdf.jsPDF;
+  var doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+
+  var pageW = 210, pageH = 297, marginL = 16, marginR = 16;
+  var headerH = 18, footerH = 14, contentTop = headerH + 10, contentBottom = pageH - footerH - 6;
+  var GREEN = [165, 207, 131], GREEN_DARK = [126, 174, 92], INK = [26, 26, 25], SLATE = [67, 86, 99], BORDER = [230, 230, 230];
+
+  var generatedAt = new Date(data.generatedAt);
+  var timestamp = generatedAt.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  function drawHeader() {
+    doc.setFillColor(GREEN[0], GREEN[1], GREEN[2]); doc.rect(0, 0, pageW, headerH, 'F');
+    doc.setFillColor(INK[0], INK[1], INK[2]); doc.circle(marginL + 4, headerH / 2, 4, 'F');
+    doc.setDrawColor(255, 255, 255); doc.setLineWidth(0.8);
+    doc.line(marginL + 2.2, headerH / 2, marginL + 3.6, headerH / 2 + 1.5);
+    doc.line(marginL + 3.6, headerH / 2 + 1.5, marginL + 6, headerH / 2 - 1.8);
+    doc.setTextColor(INK[0], INK[1], INK[2]); doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.text('TallyHub', marginL + 11, headerH / 2 + 1);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(SLATE[0], SLATE[1], SLATE[2]);
+    doc.text('LIVE RESULTS · ' + data.position.toUpperCase(), pageW - marginR, headerH / 2 - 1, { align: 'right' });
+    doc.text(data.constituency + (data.county ? ' · ' + data.county : ''), pageW - marginR, headerH / 2 + 3, { align: 'right' });
+  }
+
+  function drawFooter() {
+    var y = pageH - footerH + 4;
+    doc.setDrawColor(BORDER[0], BORDER[1], BORDER[2]); doc.setLineWidth(0.2); doc.line(marginL, y - 4, pageW - marginR, y - 4);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(SLATE[0], SLATE[1], SLATE[2]);
+    doc.text('Generated by TallyHub', marginL, y + 1);
+    doc.text('Page ' + doc.internal.getCurrentPageInfo().pageNumber + ' of ' + doc.internal.getNumberOfPages(), pageW / 2, y + 1, { align: 'center' });
+    doc.text('Provisional — not official until certified', pageW - marginR, y + 1, { align: 'right' });
+  }
+
+  var currentY = contentTop;
+  drawHeader();
+
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(22); doc.setTextColor(INK[0], INK[1], INK[2]); doc.text(data.position.toUpperCase(), marginL, currentY + 4);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(SLATE[0], SLATE[1], SLATE[2]); doc.text(data.constituency + (data.county ? ' · ' + data.county : ''), marginL, currentY + 11);
+  doc.setFontSize(8.5); doc.text(timestamp + ' · ' + data.reported + ' of ' + data.totalStreams + ' streams reported', marginL, currentY + 17);
+  currentY += 24;
+
+  doc.setDrawColor(GREEN[0], GREEN[1], GREEN[2]); doc.setLineWidth(1); doc.line(marginL, currentY, pageW - marginR, currentY); currentY += 8;
+
+  // Constituency Overview
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(INK[0], INK[1], INK[2]); doc.text('CONSTITUENCY OVERVIEW', marginL, currentY);
+  doc.setDrawColor(GREEN_DARK[0], GREEN_DARK[1], GREEN_DARK[2]); doc.setLineWidth(0.6); doc.line(marginL, currentY + 2, marginL + 24, currentY + 2); currentY += 8;
+
+  if (!data.leaderboard.length) {
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.setTextColor(SLATE[0], SLATE[1], SLATE[2]); doc.text('No results recorded yet.', marginL, currentY); currentY += 6;
+  } else {
+    var rows = data.leaderboard.map((c, idx) => [idx + 1, c.name, c.party, c.votes.toLocaleString(), data.totalVotes > 0 ? ((c.votes / data.totalVotes) * 100).toFixed(1) + '%' : '0.0%']);
+    doc.autoTable({
+      startY: currentY, head: [['', 'Candidate', 'Party', 'Votes', 'Share']], body: rows, theme: 'plain',
+      styles: { font: 'helvetica', fontSize: 9, cellPadding: 3, textColor: INK, lineColor: BORDER, lineWidth: 0.1 },
+      headStyles: { fontStyle: 'bold', fontSize: 8, textColor: SLATE, fillColor: [250, 250, 250], lineWidth: { bottom: 0.3 }, lineColor: GREEN_DARK },
+      columnStyles: { 0: { cellWidth: 18, fontStyle: 'bold', halign: 'center' }, 2: { cellWidth: 40, textColor: SLATE }, 3: { cellWidth: 22, halign: 'right', fontStyle: 'bold' }, 4: { cellWidth: 18, halign: 'right', textColor: SLATE } },
+      margin: { left: marginL, right: marginR }
+    });
+    currentY = doc.lastAutoTable.finalY + 4;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(INK[0], INK[1], INK[2]); doc.text('Total votes cast: ' + data.totalVotes.toLocaleString(), marginL, currentY); currentY += 8;
+  }
+
+  // Ward Breakdown
+  if (data.wards.length) {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(INK[0], INK[1], INK[2]); doc.text('WARD BREAKDOWN', marginL, currentY);
+    doc.setDrawColor(GREEN_DARK[0], GREEN_DARK[1], GREEN_DARK[2]); doc.setLineWidth(0.6); doc.line(marginL, currentY + 2, marginL + 24, currentY + 2); currentY += 8;
+    
+    data.wards.forEach(w => {
+      if (currentY > contentBottom - 20) { drawFooter(); doc.addPage(); currentY = contentTop; drawHeader(); }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(SLATE[0], SLATE[1], SLATE[2]); doc.text(w.wardName.toUpperCase(), marginL, currentY); currentY += 5;
+      
+      var wRows = w.candidates.map((c, idx) => [idx + 1, c.name, c.party, c.votes.toLocaleString(), w.totalVotes > 0 ? ((c.votes / w.totalVotes) * 100).toFixed(1) + '%' : '0.0%']);
+      doc.autoTable({
+        startY: currentY, head: [['', 'Candidate', 'Party', 'Votes', 'Share']], body: wRows, theme: 'plain',
+        styles: { font: 'helvetica', fontSize: 8.5, cellPadding: 2.5, textColor: INK, lineColor: BORDER, lineWidth: 0.1 },
+        headStyles: { fontStyle: 'bold', fontSize: 7.5, textColor: SLATE, fillColor: [250, 250, 250], lineWidth: { bottom: 0.2 } },
+        columnStyles: { 0: { cellWidth: 15, fontStyle: 'bold', halign: 'center' }, 2: { cellWidth: 35, textColor: SLATE }, 3: { cellWidth: 20, halign: 'right', fontStyle: 'bold' }, 4: { cellWidth: 16, halign: 'right', textColor: SLATE } },
+        margin: { left: marginL, right: marginR }
+      });
+      currentY = doc.lastAutoTable.finalY + 6;
+    });
+  }
+
+  for (var p = 1; p <= doc.internal.getNumberOfPages(); p++) { doc.setPage(p); drawFooter(); }
+  
+  var date = new Date(); var ymd = date.getFullYear() + String(date.getMonth() + 1).padStart(2, '0') + String(date.getDate()).padStart(2, '0');
+  var safePos = data.position.replace(/\s+/g, ''); var safeCon = data.constituency.replace(/\s+/g, '');
+  doc.save('TallyHub-' + safePos + '-' + safeCon + '-' + ymd + '.pdf');
+}
 // ================================================================
 //  SETTINGS & CONFIG
 // ================================================================
