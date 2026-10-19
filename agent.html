@@ -245,6 +245,76 @@
         font-size: 13px; 
       }
     }
+    /* ================================================================
+   PREMIUM UI UPGRADE — FROSTED GLASS (OPTION 2)
+================================================================ */
+
+/* 1. The New Background */
+body { 
+  background: #F4F7F6; 
+  background-image: 
+    radial-gradient(circle at 100% 0%, rgba(165, 207, 131, 0.15) 0%, transparent 40%),
+    radial-gradient(circle at 0% 100%, rgba(21, 145, 220, 0.08) 0%, transparent 40%);
+  background-attachment: fixed;
+}
+
+/* 2. Frosted Glass Cards (Streams, Positions, Entry Forms) */
+.stream-card, 
+.position-card, 
+.candidate-entry {
+  background: rgba(255, 255, 255, 0.65) !important;
+  backdrop-filter: blur(16px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(160%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 8px 24px rgba(27, 33, 26, 0.04) !important;
+  border-radius: 20px !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease !important;
+}
+
+/* Hover effect for a more tactile feel */
+.stream-card:hover, 
+.position-card:hover {
+  background: rgba(255, 255, 255, 0.85) !important;
+  box-shadow: 0 12px 32px rgba(27, 33, 26, 0.08) !important;
+  transform: translateY(-2px) scale(1.01) !important;
+}
+
+.stream-card:active, 
+.position-card:active {
+  transform: scale(0.98) !important;
+}
+
+/* 3. Keep the Accent Bars looking sharp */
+.stream-card::before, 
+.position-card::before {
+  border-radius: 20px 0 0 20px; /* Smooth out the left edge */
+}
+
+/* 4. Frosted Sticky Headers and Footers */
+.sub-header, 
+.entry-footer {
+  background: rgba(244, 247, 246, 0.85) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+/* 5. Candidate Entry Form refinement */
+.candidate-entry.has-vote {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: #1591DC !important;
+  box-shadow: 0 4px 16px rgba(21, 145, 220, 0.15) !important;
+}
+
+.candidate-entry.missing {
+  background: rgba(255, 255, 255, 0.5) !important;
+  border-color: rgba(184, 134, 11, 0.3) !important;
+}
+
+/* Soften the total votes bar at the bottom */
+.entry-total {
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
+}
   </style>
 </head>
 <body>
