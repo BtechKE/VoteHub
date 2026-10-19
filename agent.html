@@ -751,41 +751,60 @@ async function goToReadonly(streamCode, position) {
   currentStream = STREAMS.find(s => s.code === streamCode);
   currentPosition = position;
   document.getElementById('roTitle').textContent = position;
-  document.getElementById('roSub').textContent = currentStream.centreName;
+  document.getElementById('roSub').textContent = currentStream ? currentStream.centreName : '';
   document.getElementById('readonlyBody').innerHTML = '<div class="loading"><i class="fas fa-spinner"></i>Loading…</div>';
   showScreen('screenReadonly');
 
-  const { data } = await db.from('results')
-    .select('votes, submitted_by, created_at, candidates(name, party, photo_url)')
-    .eq('stream_code', streamCode).eq('position', position);
+  try {
+    const { data, error } = await db.from('results')
+      .select('votes, submitted_by, created_at, candidates(name, party, photo_url)')
+      .eq('stream_code', streamCode).eq('position', position);
 
-  if (!data || !data.length) { goToEntry(streamCode, position); return; }
+    if (error) throw error;
 
-  var html = '<div class="readonly-info"><div class="readonly-info-row"><i class="fas fa-user-check"></i> Submitted by <strong>' + esc(data[0].submitted_by) + '</strong></div><div class="readonly-info-row"><i class="fas fa-clock"></i> ' + new Date(data[0].created_at).toLocaleString() + '</div><div class="readonly-info-row"><i class="fas fa-lock"></i> Locked</div></div>';
-  
-  data.sort((a,b) => b.votes - a.votes).forEach((r, idx) => {
-    var rank = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : (idx + 1);
-    var initial = r.candidates.name ? r.candidates.name.charAt(0).toUpperCase() : '?';
+    if (!data || !data.length) { 
+      goToEntry(streamCode, position); 
+      return; 
+    }
+
+    var html = '<div class="readonly-info">' +
+      '<div class="readonly-info-row"><i class="fas fa-user-check"></i> Submitted by <strong>' + esc(data[0].submitted_by) + '</strong></div>' +
+      '<div class="readonly-info-row"><i class="fas fa-clock"></i> ' + new Date(data[0].created_at).toLocaleString() + '</div>' +
+      '<div class="readonly-info-row"><i class="fas fa-lock"></i> Locked</div>' +
+    '</div>';
     
-    // 1. Normalize the URL
-    var photoUrl = normalizeImageUrl(r.candidates.photo_url);
-    
-    // 2. Use the avatar-wrap HTML
-    var photoHtml = photoUrl
-      ? '<img src="' + escAttr(photoUrl) + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.textContent=\'' + escAttr(initial) + '\'">'
-      : initial;
+    data.sort((a,b) => b.votes - a.votes).forEach((r, idx) => {
+      var rank = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : (idx + 1);
+      
+      // Safety check: ensure candidate data actually exists
+      var candName = r.candidates ? r.candidates.name : 'Unknown';
+      var candParty = r.candidates ? r.candidates.party : '';
+      var rawPhoto = r.candidates ? r.candidates.photo_url : '';
+      
+      var initial = candName.charAt(0).toUpperCase();
+      var photoUrl = normalizeImageUrl(rawPhoto);
+      
+      var photoHtml = photoUrl
+        ? '<img src="' + escAttr(photoUrl) + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.textContent=\'' + escAttr(initial) + '\'">'
+        : initial;
 
-    html += '<div class="readonly-row ' + (idx === 0 ? 'leader' : '') + '">' +
-      '<div class="avatar-wrap small' + (photoUrl ? '' : ' no-photo') + '">' +
-        photoHtml +
-        '<span class="avatar-rank">' + rank + '</span>' +
-      '</div>' +
-      '<div class="readonly-name"><div class="n">' + esc(r.candidates.name) + '</div><div class="p">' + esc(r.candidates.party) + '</div></div>' +
-      '<div class="readonly-votes">' + r.votes.toLocaleString() + '</div></div>';
-  });
-  
-  document.getElementById('readonlyBody').innerHTML = html;
-}
+      html += '<div class="readonly-row ' + (idx === 0 ? 'leader' : '') + '">' +
+        '<div class="avatar-wrap small' + (photoUrl ? '' : ' no-photo') + '">' +
+          photoHtml +
+          '<span class="avatar-rank">' + rank + '</span>' +
+        '</div>' +
+        '<div class="readonly-name"><div class="n">' + esc(candName) + '</div><div class="p">' + esc(candParty) + '</div></div>' +
+        '<div class="readonly-votes">' + r.votes.toLocaleString() + '</div></div>';
+    });
+    
+    document.getElementById('readonlyBody').innerHTML = html;
+
+  } catch (err) {
+    console.error("Readonly Error:", err);
+    // If something fails, show the error on the screen instead of a spinning wheel
+    document.getElementById('readonlyBody').innerHTML = '<div class="empty-state"><div class="title">Error loading results</div><div class="sub">' + esc(err.message) + '</div></div>';
+  }
+      }
 
 // ================================================================
 //  UTILS & UI HELPERS
