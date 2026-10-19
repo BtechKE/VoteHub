@@ -246,75 +246,67 @@
       }
     }
     /* ================================================================
-   PREMIUM UI UPGRADE — FROSTED GLASS (OPTION 2)
+   PREMIUM UI UPGRADE - FROSTED GLASS (ULTIMATE OVERRIDE)
 ================================================================ */
 
-/* 1. The New Background */
+/* 1. The Canvas - A soft, cool grey/blue to make white pop */
 body { 
-  background: #F4F7F6; 
+  background: #E2E8F0 !important; 
   background-image: 
-    radial-gradient(circle at 100% 0%, rgba(165, 207, 131, 0.15) 0%, transparent 40%),
-    radial-gradient(circle at 0% 100%, rgba(21, 145, 220, 0.08) 0%, transparent 40%);
-  background-attachment: fixed;
+    radial-gradient(circle at 100% 0%, rgba(165, 207, 131, 0.4) 0%, transparent 50%),
+    radial-gradient(circle at 0% 100%, rgba(21, 145, 220, 0.2) 0%, transparent 50%) !important;
+  background-attachment: fixed !important;
 }
 
-/* 2. Frosted Glass Cards (Streams, Positions, Entry Forms) */
+/* 2. Frosted Glass Cards - Streams, Positions, Candidates */
 .stream-card, 
 .position-card, 
 .candidate-entry {
-  background: rgba(255, 255, 255, 0.65) !important;
-  backdrop-filter: blur(16px) saturate(160%) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(160%) !important;
+  background: rgba(255, 255, 255, 0.55) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
   border: 1px solid rgba(255, 255, 255, 0.9) !important;
-  box-shadow: 0 8px 24px rgba(27, 33, 26, 0.04) !important;
-  border-radius: 20px !important;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05) !important;
+  border-radius: 22px !important;
+  transition: all 0.2s ease !important;
 }
 
-/* Hover effect for a more tactile feel */
-.stream-card:hover, 
-.position-card:hover {
-  background: rgba(255, 255, 255, 0.85) !important;
-  box-shadow: 0 12px 32px rgba(27, 33, 26, 0.08) !important;
-  transform: translateY(-2px) scale(1.01) !important;
-}
-
+/* 3. Make the cards lift up nicely when tapped */
 .stream-card:active, 
 .position-card:active {
-  transform: scale(0.98) !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  transform: scale(0.97) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
 }
 
-/* 3. Keep the Accent Bars looking sharp */
-.stream-card::before, 
-.position-card::before {
-  border-radius: 20px 0 0 20px; /* Smooth out the left edge */
-}
-
-/* 4. Frosted Sticky Headers and Footers */
+/* 4. Sticky Headers & Footers */
 .sub-header, 
 .entry-footer {
-  background: rgba(244, 247, 246, 0.85) !important;
+  background: rgba(226, 232, 240, 0.85) !important;
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
   border-color: rgba(0, 0, 0, 0.05) !important;
 }
 
-/* 5. Candidate Entry Form refinement */
+/* 5. Entry Form Fine-Tuning */
+.candidate-entry {
+  margin-bottom: 12px !important;
+  padding: 14px 16px !important;
+}
 .candidate-entry.has-vote {
   background: rgba(255, 255, 255, 0.95) !important;
   border-color: #1591DC !important;
-  box-shadow: 0 4px 16px rgba(21, 145, 220, 0.15) !important;
+  box-shadow: 0 8px 24px rgba(21, 145, 220, 0.15) !important;
 }
-
 .candidate-entry.missing {
-  background: rgba(255, 255, 255, 0.5) !important;
-  border-color: rgba(184, 134, 11, 0.3) !important;
+  background: rgba(255, 255, 255, 0.4) !important;
+  border-color: rgba(184, 134, 11, 0.4) !important;
 }
 
-/* Soften the total votes bar at the bottom */
+/* 6. Make the total votes bar look clean */
 .entry-total {
-  border-bottom: 1px dashed rgba(0, 0, 0, 0.1);
-}
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.15) !important;
+      }
   </style>
 </head>
 <body>
