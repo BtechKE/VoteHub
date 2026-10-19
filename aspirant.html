@@ -1296,9 +1296,18 @@ function escAttr(s) { return esc(s); }
 function toast(msg, type) { type = type || 'info'; var icons = { success: 'fa-circle-check', error: 'fa-circle-exclamation', info: 'fa-circle-info' }; var el = document.createElement('div'); el.className = 'toast ' + type; el.innerHTML = '<i class="fas ' + (icons[type] || icons.info) + '"></i><span></span>'; el.querySelector('span').textContent = msg; document.getElementById('toasts').appendChild(el); setTimeout(function () { if (el.parentElement) el.remove(); }, 4000); }
 
 function doLogout() {
-  if(confirm('Sign out?')) {
-    db.auth.signOut().then(() => window.location.href = 'index.html');
-  }
+  thConfirm({
+    title: 'Sign out?',
+    message: 'You will need your login code to access the dashboard again.',
+    confirmText: 'Sign Out',
+    cancelText: 'Stay',
+    tone: 'danger',
+    icon: 'fa-right-from-bracket'
+  }).then(function (ok) { 
+    if (ok) {
+      db.auth.signOut().then(() => window.location.href = 'index.html'); 
+    }
+  });
 }
 
 setInterval(function () { var el = document.querySelector('.hero-live'); if (el && lastRefreshAt) { el.innerHTML = '<span class="dot"></span>Live · ' + esc(timeAgo(lastRefreshAt)); } }, 30000);
