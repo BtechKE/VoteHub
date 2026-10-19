@@ -560,7 +560,7 @@ function renderStreams() {
     var total = POSITIONS.length;
     var pct = Math.round(submitted / total * 100);
     var cls = submitted === total ? 'status-complete' : submitted > 0 ? 'status-partial' : 'status-pending';
-    var badgeText = submitted === total ? '✅ Complete' : submitted > 0 ? submitted + '/' + total + ' done' : 'Not started';
+    var badgeText = submitted === total ? 'Complete' : submitted > 0 ? submitted + '/' + total + ' done' : 'Not started';
     var num = st.streamNumber < 10 ? '0' + st.streamNumber : String(st.streamNumber);
 
     return '<div class="stream-card ' + cls + '" onclick="goToPositions(\'' + st.code + '\')">' +
