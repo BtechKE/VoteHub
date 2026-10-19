@@ -445,11 +445,12 @@ async function loadStreams(silent) {
         .in('stream_code', USER.assigned_streams || []);
 
     STREAMS = (streamsData || []).map(s => ({
-      code: s.code,
-      centreId: s.centre_id,
-      centreName: s.centres.name,
-      streamNumber: s.stream_number
-    })).sort((a,b) => a.streamNumber - b.streamNumber);
+  code: s.code,
+  centreId: s.centre_id,
+  centreName: s.centres.name,
+  streamNumber: s.stream_number,
+  wardId: s.ward_id  // <--- ADD THIS LINE
+})).sort((a,b) => a.streamNumber - b.streamNumber);
 
     STATUSES = {};
     STREAMS.forEach(st => {
@@ -574,17 +575,27 @@ async function goToEntry(streamCode, position) {
   showScreen('screenEntry');
 
   try {
+    // 1. Get candidates for this position
     let query = db.from('candidates').select('*').eq('position', position);
-    if (position === 'MCA') query = query.eq('ward_id', currentStream.wardId);
     
-    const { data: cands } = await query;
+    // 2. If it is MCA, we MUST filter by the stream's specific ward
+    if (position === 'MCA') {
+      if (!currentStream.wardId) {
+        throw new Error("Stream does not have a Ward ID assigned.");
+      }
+      query = query.eq('ward_id', currentStream.wardId);
+    }
+    
+    const { data: cands, error } = await query;
+    if (error) throw error;
+
     currentCandidates = (cands || []).map(c => ({ ...c, photo_url: normalizeImageUrl(c.photo_url) }));
     renderEntryForm();
   } catch (e) {
-    toast('Failed to load candidates.', 'error');
+    console.error(e);
+    document.getElementById('entryCandidateList').innerHTML = '<div class="empty-state"><div class="title">No candidates found</div><div class="sub">' + esc(e.message) + '</div></div>';
   }
 }
-
 function renderEntryForm() {
   if (!currentCandidates.length) {
     document.getElementById('candidateEntryList').innerHTML = '<div class="empty-state"><div class="title">No candidates</div></div>';
