@@ -984,8 +984,17 @@ function getScopedLeaderboard() {
   }
   if (DRILL_CENTRE && DRILL_DATA && DRILL_DATA.level === 'stream') {
     var byCode = {};
-    (DRILL_DATA.streams || []).forEach(function (s) { (s.candidates || []).forEach(function (c) { if (!byCode[c.code]) { byCode[c.code] = { code: c.code, name: c.name, party: c.party, photo: c.photo_url || '', votes: 0 }; } byCode[c.code].votes += c.votes; }); });
-    var arr = Object.keys(byCode).map(function (k) { return byCode[k]; }); var total = arr.reduce(function (s, c) { return s + c.votes; }, 0);
+    (DRILL_DATA.streams || []).forEach(function (s) { 
+      (s.candidates || []).forEach(function (c) { 
+        if (!byCode[c.code]) { 
+          // THIS IS THE FIX: It was 'photo', now it is 'photo_url'
+          byCode[c.code] = { code: c.code, name: c.name, party: c.party, photo_url: c.photo_url || '', votes: 0 }; 
+        } 
+        byCode[c.code].votes += c.votes; 
+      }); 
+    });
+    var arr = Object.keys(byCode).map(function (k) { return byCode[k]; }); 
+    var total = arr.reduce(function (s, c) { return s + c.votes; }, 0);
     return { candidates: arr, total: total, context: DRILL_CENTRE_NAME + ' Centre', streamsDone: (DRILL_DATA.streams || []).filter(function (s) { return s.submitted; }).length, streamsTotal: (DRILL_DATA.streams || []).length };
   }
   return null;
@@ -1253,7 +1262,15 @@ function openCandidateDetail(code) {
 
   if (isMCA && DRILL_WARD && DRILL_CENTRE && DRILL_DATA && DRILL_DATA.level === 'stream') {
     var centreCandidates = {};
-    (DRILL_DATA.streams || []).forEach(function (s) { (s.candidates || []).forEach(function (c) { if (!centreCandidates[c.code]) { centreCandidates[c.code] = { code: c.code, name: c.name, party: c.party, photo: c.photo_url || '', votes: 0 }; } centreCandidates[c.code].votes += c.votes; }); });
+    (DRILL_DATA.streams || []).forEach(function (s) { 
+      (s.candidates || []).forEach(function (c) { 
+        if (!centreCandidates[c.code]) { 
+          // THIS IS THE FIX: 'photo' is now 'photo_url'
+          centreCandidates[c.code] = { code: c.code, name: c.name, party: c.party, photo_url: c.photo_url || '', votes: 0 }; 
+        } 
+        centreCandidates[c.code].votes += c.votes; 
+      }); 
+    });
     pool = Object.keys(centreCandidates).map(function (k) { return centreCandidates[k]; }); pool.sort(function (a, b) { return b.votes - a.votes; }); totalVotes = pool.reduce(function (s, c) { return s + c.votes; }, 0); subtitleContext = DRILL_CENTRE_NAME + ' · MCA';
   } else if (isMCA && DRILL_WARD) {
     var ward = (OVERVIEW.wards || []).filter(function (w) { return w.wardId === DRILL_WARD; })[0];
@@ -1280,6 +1297,7 @@ function openCandidateDetail(code) {
   sheet.innerHTML = '<div class="sheet-head"><div><div class="sheet-title">' + esc(me.name) + '</div><div class="sheet-sub">' + esc(me.party) + ' · ' + esc(subtitleContext) + '</div></div><button class="sheet-close" onclick="closeSheet()"><i class="fas fa-xmark"></i></button></div><div class="cmp-grid"><div class="cmp-card ' + (rank === 1 ? 'winner' : '') + '"><div class="who">Rank</div><div class="cmp-votes">#' + rank + '</div></div><div class="cmp-card ' + (rank === 1 ? 'winner' : '') + '"><div class="who">' + (isYou ? 'Your votes' : 'Votes') + '</div><div class="cmp-votes">' + me.votes.toLocaleString() + '</div><div class="cmp-pct">' + myPct + '% share</div></div></div>' + behindText;
   sheetBg.classList.add('active');
 }
+
 
 function closeSheet() { var bg = document.getElementById('sheetBg'); if (bg) bg.classList.remove('active'); }
 document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeSheet(); });
