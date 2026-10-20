@@ -593,7 +593,7 @@ async function loadOverview(silent) {
     const [ { data: cands }, { data: candTotals }, { data: wardRes }, { data: wardsData }, { data: streamsData }, { data: resultsData } ] = await Promise.all([
         db.from('candidates').select('*'), db.from('candidate_totals').select('*'),
         db.from('ward_results').select('*'), db.from('wards').select('*').order('name'),
-        db.from('streams').select('code, ward_id'), db.from('results').select('stream_code')
+        db.from('streams').select('code, ward_id'), db.from('results').select('stream_code').eq('position', VIEW_POS)
     ]);
 
     // FIX: Call normalizeImageUrl and fix the photo_url typo
