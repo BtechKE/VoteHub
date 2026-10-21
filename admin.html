@@ -2943,16 +2943,28 @@ async function saveAgent(id) {
 
   if (id) {
     // --- EDITING EXISTING AGENT ---
-    const { error } = await db.from('agents').update({
-      name: name,
-      phone: phone,
-      assigned_streams: streams
-    }).eq('id', id);
+    try {
+      const { data, error } = await db.from('agents').update({
+        name: name,
+        phone: phone,
+        assigned_streams: streams
+      }).eq('id', id).select(); // <--- .select() forces Supabase to return the updated data
 
-    if (error) return toast('Failed to update: ' + error.message, 'error');
-    toast('Agent updated.', 'success');
-    closeModal();
-    loadAllData();
+      if (error) {
+        console.error(error);
+        return toast('Database Error: ' + error.message, 'error');
+      }
+      if (!data || data.length === 0) {
+        return toast('Update failed. RLS policy might be blocking you.', 'error');
+      }
+
+      toast('Agent updated.', 'success');
+      closeModal();
+      loadAllData();
+    } catch (err) {
+      console.error(err);
+      toast('An unexpected error occurred.', 'error');
+    }
   } else {
     // --- CREATING NEW AGENT ---
     var email = document.getElementById('m_agentEmail').value.trim();
@@ -2970,7 +2982,6 @@ async function saveAgent(id) {
     loadAllData();
   }
 }
-
 function openAspirantModal() {
   var posOpts = POSITIONS.map(p => `<option value="${p}">${p}</option>`).join('');
   var wardOpts = `<option value="">— Select ward —</option>` + WARDS.map(w => `<option value="${w.id}">${esc(w.name)}</option>`).join('');
@@ -3002,17 +3013,29 @@ async function saveAspirant(id) {
 
   if (id) {
     // --- EDITING EXISTING ASPIRANT ---
-    const { error } = await db.from('aspirants').update({ 
-      name: name, 
-      position: pos, 
-      ward_id: ward || null, 
-      login_code: login 
-    }).eq('id', id);
+    try {
+      const { data, error } = await db.from('aspirants').update({ 
+        name: name, 
+        position: pos, 
+        ward_id: ward || null, 
+        login_code: login 
+      }).eq('id', id).select(); // <--- .select() here too
 
-    if (error) return toast('Failed to update: ' + error.message, 'error');
-    toast('Aspirant updated.', 'success'); 
-    closeModal(); 
-    loadAllData();
+      if (error) {
+        console.error(error);
+        return toast('Database Error: ' + error.message, 'error');
+      }
+      if (!data || data.length === 0) {
+        return toast('Update failed. RLS policy might be blocking you.', 'error');
+      }
+
+      toast('Aspirant updated.', 'success'); 
+      closeModal(); 
+      loadAllData();
+    } catch (err) {
+      console.error(err);
+      toast('An unexpected error occurred.', 'error');
+    }
   } else {
     // --- CREATING NEW ASPIRANT ---
     var email = document.getElementById('m_aspEmail').value.trim();
