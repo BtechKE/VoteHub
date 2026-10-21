@@ -2933,18 +2933,42 @@ function openAgentModal() {
     <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveAgent('${esc(id)}')">Save</button></div>
   `);
 }
-async function saveAgent() {
+async function saveAgent(id) {
   var name = document.getElementById('m_agentName').value.trim();
   var phone = document.getElementById('m_agentPhone').value.trim();
-  var email = document.getElementById('m_agentEmail').value.trim();
-  var pw = document.getElementById('m_agentPass').value;
   var streams = [].slice.call(document.querySelectorAll('.agent-stream-cb:checked')).map(cb => cb.value);
-  
-  if (!name || !email || !pw) return toast('Name, email, and password required.', 'error');
-  
-  const { data, error } = await db.rpc('admin_create_agent', { p_email: email, p_password: pw, p_name: name, p_phone: phone, p_streams: streams });
-  if (error || !data.success) return toast(error?.message || 'Failed', 'error');
-  toast('Agent created.', 'success'); closeModal(); loadAllData();
+
+  if (!name) return toast('Enter agent name.', 'error');
+  if (!streams || streams.length === 0) return toast('Assign at least one stream.', 'error');
+
+  if (id) {
+    // --- EDITING EXISTING AGENT ---
+    const { error } = await db.from('agents').update({
+      name: name,
+      phone: phone,
+      assigned_streams: streams
+    }).eq('id', id);
+
+    if (error) return toast('Failed to update: ' + error.message, 'error');
+    toast('Agent updated.', 'success');
+    closeModal();
+    loadAllData();
+  } else {
+    // --- CREATING NEW AGENT ---
+    var email = document.getElementById('m_agentEmail').value.trim();
+    var pw = document.getElementById('m_agentPass').value;
+    
+    if (!email || !pw) return toast('Email and password are required.', 'error');
+
+    const { data, error } = await db.rpc('admin_create_agent', { 
+      p_email: email, p_password: pw, p_name: name, p_phone: phone, p_streams: streams 
+    });
+    
+    if (error || !data.success) return toast(error?.message || 'Failed to create agent.', 'error');
+    toast('Agent created.', 'success');
+    closeModal();
+    loadAllData();
+  }
 }
 
 function openAspirantModal() {
@@ -2972,30 +2996,38 @@ async function saveAspirant(id) {
   var pos = document.getElementById('m_aspPosition').value;
   var ward = document.getElementById('m_aspWard') ? document.getElementById('m_aspWard').value : null;
   var login = document.getElementById('m_aspLogin').value.trim().toUpperCase();
-  
+
   if (!name || !login) return toast('Name and login code are required.', 'error');
   if (pos === 'MCA' && !ward) return toast('MCA aspirants need a ward.', 'error');
 
   if (id) {
-    // EDITING EXISTING
+    // --- EDITING EXISTING ASPIRANT ---
     const { error } = await db.from('aspirants').update({ 
-      name: name, position: pos, ward_id: ward || null, login_code: login 
+      name: name, 
+      position: pos, 
+      ward_id: ward || null, 
+      login_code: login 
     }).eq('id', id);
-    
+
     if (error) return toast('Failed to update: ' + error.message, 'error');
-    toast('Aspirant updated.', 'success'); closeModal(); loadAllData();
+    toast('Aspirant updated.', 'success'); 
+    closeModal(); 
+    loadAllData();
   } else {
-    // CREATING NEW (Needs Email & Password)
+    // --- CREATING NEW ASPIRANT ---
     var email = document.getElementById('m_aspEmail').value.trim();
     var pw = document.getElementById('m_aspPass').value;
-    if (!email || !pw) return toast('Email and password are required for new users.', 'error');
     
+    if (!email || !pw) return toast('Email and password are required for new users.', 'error');
+
     const { data, error } = await db.rpc('admin_create_aspirant', { 
       p_email: email, p_password: pw, p_name: name, p_position: pos, p_ward: ward || null, p_login: login 
     });
     
     if (error || !data.success) return toast(error?.message || 'Failed to create aspirant.', 'error');
-    toast('Aspirant created.', 'success'); closeModal(); loadAllData();
+    toast('Aspirant created.', 'success'); 
+    closeModal(); 
+    loadAllData();
   }
 }
 
