@@ -3832,21 +3832,22 @@ async function toggleAspirant(id) {
 function deleteAgent(id) {
   thConfirm({ 
     title: 'Delete agent?', 
-    message: 'This will permanently delete their profile and their login access.',
+    message: 'This permanently removes their login and profile.', 
     confirmText: 'Delete', 
     tone: 'danger' 
   }).then(async ok => {
     if (ok) { 
-      // 1. Find the agent to get their auth_user_id
       var agent = AGENTS.find(x => x.id === id);
-      if (!agent) return toast('Agent not found.', 'error');
+      if (!agent) return toast('Agent not found in local state.', 'error');
 
-      // 2. Call the RPC to delete the Auth user (which cascades to the profile)
-      const { data, error } = await db.rpc('admin_delete_user', { p_auth_id: agent.auth_user_id });
+      const { data, error } = await db.rpc('admin_delete_user', { 
+        p_auth_id: agent.auth_user_id || null, 
+        p_table: 'agents', 
+        p_id: agent.id 
+      });
       
-      if (error || !data.success) {
-        return toast('Failed to delete: ' + (error?.message || 'Unknown error'), 'error');
-      }
+      if (error) return toast('Network error: ' + error.message, 'error');
+      if (!data.success) return toast('Database error: ' + data.message, 'error');
       
       toast('Agent completely deleted.', 'success');
       loadAllData(); 
@@ -3857,21 +3858,22 @@ function deleteAgent(id) {
 function deleteAspirant(id) {
   thConfirm({ 
     title: 'Delete aspirant?', 
-    message: 'This will permanently delete their profile and their login access.',
+    message: 'This permanently removes their login and profile.', 
     confirmText: 'Delete', 
     tone: 'danger' 
   }).then(async ok => {
     if (ok) { 
-      // 1. Find the aspirant to get their auth_user_id
       var aspirant = ASPIRANTS.find(x => x.id === id);
-      if (!aspirant) return toast('Aspirant not found.', 'error');
+      if (!aspirant) return toast('Aspirant not found in local state.', 'error');
 
-      // 2. Call the RPC to delete the Auth user
-      const { data, error } = await db.rpc('admin_delete_user', { p_auth_id: aspirant.auth_user_id });
+      const { data, error } = await db.rpc('admin_delete_user', { 
+        p_auth_id: aspirant.auth_user_id || null, 
+        p_table: 'aspirants', 
+        p_id: aspirant.id 
+      });
       
-      if (error || !data.success) {
-        return toast('Failed to delete: ' + (error?.message || 'Unknown error'), 'error');
-      }
+      if (error) return toast('Network error: ' + error.message, 'error');
+      if (!data.success) return toast('Database error: ' + data.message, 'error');
       
       toast('Aspirant completely deleted.', 'success');
       loadAllData(); 
