@@ -3554,22 +3554,30 @@ async function openTrackerPip(streamCode, position) {
   sheet.innerHTML = '<div class="sheet-head"><div><div class="sheet-title">' + esc(position) + ' · ' + esc(label) + '</div><div class="sheet-sub">' + esc(centreName) + ' · ' + esc(wardName) + ' Ward</div></div><button class="sheet-close" onclick="closeSheet()"><i class="fas fa-xmark"></i></button></div><div class="loading-inline"><i class="fas fa-spinner"></i>Loading submission…</div>';
 
   try {
-    const { data } = await db.from('results')
+    const { data, error } = await db.from('results')
       .select('votes, submitted_by, created_at, candidates(name, party, photo_url)')
       .eq('stream_code', streamCode).eq('position', position);
+
+    if (error) throw error;
 
     if (!data || !data.length) {
       sheet.innerHTML = '<div class="sheet-head"><div><div class="sheet-title">' + esc(position) + ' · ' + esc(label) + '</div></div><button class="sheet-close" onclick="closeSheet()"><i class="fas fa-xmark"></i></button></div><div class="empty"><div class="empty-title">Not submitted yet</div></div>';
       return;
     }
 
-    // THE FIX: We map to 'photo_url' and run normalizeImageUrl
-    const mappedResults = data.map(r => ({
-        candidateName: r.candidates.name, 
-        party: r.candidates.party, 
-        photo_url: normalizeImageUrl(r.candidates.photo_url), 
-        votes: r.votes
-    })).sort((a, b) => b.votes - a.votes);
+    const mappedResults = data.map(r => {
+        // SAFETY CHECK: If candidates object is missing for some reason
+        var cName = r.candidates ? r.candidates.name : 'Unknown';
+        var cParty = r.candidates ? r.candidates.party : '';
+        var cPhoto = r.candidates ? r.candidates.photo_url : '';
+        
+        return {
+            candidateName: cName, 
+            party: cParty, 
+            photo_url: normalizeImageUrl(cPhoto), 
+            votes: r.votes
+        };
+    }).sort((a, b) => b.votes - a.votes);
 
     const res = {
         submitted: true, 
@@ -3582,10 +3590,11 @@ async function openTrackerPip(streamCode, position) {
     renderTrackerPipResult(res, position, label, centreName, wardName);
 
   } catch (e) {
-    console.error(e);
-    sheet.innerHTML = '<div class="empty">Error loading results.</div>';
+    console.error("PIP Error:", e);
+    sheet.innerHTML = '<div class="empty">Error loading results: ' + esc(e.message) + '</div>';
   }
 }
+
 function renderTrackerPipResult(res, position, label, centreName, wardName) {
   var sheet = document.getElementById('sheetContent'); 
   var total = (res.results || []).reduce(function (s, r) { return s + (Number(r.votes) || 0); }, 0);
@@ -3604,7 +3613,9 @@ function renderTrackerPipResult(res, position, label, centreName, wardName) {
     
     var initial = c.candidateName ? c.candidateName.charAt(0).toUpperCase() : '?'; 
     
-    // THIS IS THE CRITICAL FIX: We must use c.photo_url
+    // DEBUG: This will print exactly what the photo URL is in the console
+    console.log("Loading image for", c.candidateName, ":", c.photo_url);
+
     var photoHtml = c.photo_url ? '<img src="' + escAttr(c.photo_url) + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.textContent=\'' + escAttr(initial) + '\'">' : initial;
     
     return '<div class="board-row' + (isLead ? ' leader' : '') + '" style="cursor:default;">' +
@@ -3628,6 +3639,7 @@ function renderTrackerPipResult(res, position, label, centreName, wardName) {
     infoHtml + 
     '<div class="board" style="border:none;">' + rowsHtml + '</div>';
 }
+
 function closeSheet() {
   document.getElementById('sheetBg').classList.remove('active');
 }
