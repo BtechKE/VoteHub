@@ -3609,22 +3609,21 @@ function renderTrackerPipResult(res, position, label, centreName, wardName) {
     var medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : (idx + 1);
     
     var initial = c.candidateName ? c.candidateName.charAt(0).toUpperCase() : '?'; 
-    
-    // DEBUG: This will print exactly what the photo URL is in the console
-    console.log("Loading image for", c.candidateName, ":", c.photo_url);
-
     var photoHtml = c.photo_url ? '<img src="' + escAttr(c.photo_url) + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.textContent=\'' + escAttr(initial) + '\'">' : initial;
     
-    return '<div class="board-row' + (isLead ? ' leader' : '') + '" style="cursor:default;">' +
-      '<div class="avatar-wrap' + (c.photo_url ? '' : ' no-photo') + '">' + photoHtml + '<span class="avatar-rank">' + medal + '</span></div>' +
-      '<div class="board-info">' +
-        '<div class="board-name">' + esc(c.candidateName) + '</div>' +
-        '<div class="board-party">' + esc(c.party) + '</div>' +
+    // THE FIX: Using the Admin's 'result-row' CSS classes
+    return '<div class="result-row' + (isLead ? ' leader' : '') + '" style="margin-bottom:8px;cursor:default;">' +
+      '<div class="avatar-wrap' + (c.photo_url ? '' : ' no-photo') + '">' + 
+        photoHtml + 
+        '<span class="avatar-rank">' + medal + '</span>' + 
       '</div>' +
-      '<div style="text-align:right;">' +
-        '<div class="board-votes">' + votes.toLocaleString() + '</div>' +
-        '<div class="board-pct">' + pct + '%</div>' +
-      '</div><div></div></div>';
+      '<div class="result-info">' +
+        '<div class="result-name">' + esc(c.candidateName) + '</div>' +
+        '<div class="result-party">' + esc(c.party) + '</div>' +
+      '</div>' +
+      '<div class="result-votes">' + votes.toLocaleString() + '</div>' +
+      '<div class="result-pct">' + pct + '%</div>' +
+    '</div>';
   }).join('');
   
   sheet.innerHTML = 
@@ -3634,7 +3633,7 @@ function renderTrackerPipResult(res, position, label, centreName, wardName) {
       '<button class="sheet-close" onclick="closeSheet()"><i class="fas fa-xmark"></i></button>' +
     '</div>' + 
     infoHtml + 
-    '<div class="board" style="border:none;">' + rowsHtml + '</div>';
+    rowsHtml;
 }
 
 function closeSheet() {
