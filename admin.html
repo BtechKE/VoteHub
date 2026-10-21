@@ -3603,7 +3603,8 @@ function renderTrackerPipResult(res, position, label, centreName, wardName) {
     var medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : (idx + 1);
     
     var initial = c.candidateName ? c.candidateName.charAt(0).toUpperCase() : '?'; 
-    // We use c.photo_url because that's what we mapped in openTrackerPip
+    
+    // THIS IS THE CRITICAL FIX: We must use c.photo_url
     var photoHtml = c.photo_url ? '<img src="' + escAttr(c.photo_url) + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.textContent=\'' + escAttr(initial) + '\'">' : initial;
     
     return '<div class="board-row' + (isLead ? ' leader' : '') + '" style="cursor:default;">' +
