@@ -3538,14 +3538,14 @@ function renderTracker() {
 async function openTrackerPip(streamCode, position) {
   var sheet = document.getElementById('sheetContent');
   
-  // Find context for header
   var ctx = null;
   if (TRACKER_DATA) {
-    TRACKER_DATA.groups.forEach(g => {
-      g.streams.forEach(st => { if (st.code === streamCode) ctx = { group: g, stream: st }; });
+    TRACKER_DATA.groups.forEach(function (g) {
+      g.streams.forEach(function (st) {
+        if (st.code === streamCode) ctx = { group: g, stream: st };
+      });
     });
   }
-  
   var label = ctx ? ctx.stream.label : streamCode;
   var centreName = ctx ? ctx.group.centreName : '';
   var wardName = ctx ? ctx.group.wardName : '';
@@ -3563,25 +3563,23 @@ async function openTrackerPip(streamCode, position) {
       return;
     }
 
-    var total = data.reduce((sum, r) => sum + r.votes, 0);
-    var infoHtml = '<div class="pip-result-info">' +
-      '<div class="row"><i class="fas fa-user-check user"></i>Submitted by <strong>' + esc(data[0].submitted_by) + '</strong></div>' +
-      '<div class="row"><i class="fas fa-clock clock"></i>' + (data[0].created_at ? new Date(data[0].created_at).toLocaleString() : 'Unknown time') + '</div>' +
-      '<div class="row"><i class="fas fa-lock lock"></i>Locked · ' + total.toLocaleString() + ' total votes</div></div>';
+    // THE FIX: We map to 'photo_url' and run normalizeImageUrl
+    const mappedResults = data.map(r => ({
+        candidateName: r.candidates.name, 
+        party: r.candidates.party, 
+        photo_url: normalizeImageUrl(r.candidates.photo_url), 
+        votes: r.votes
+    })).sort((a, b) => b.votes - a.votes);
 
-    var rowsHtml = data.sort((a,b) => b.votes - a.votes).map((r, idx) => {
-      var pct = total > 0 ? (r.votes / total * 100).toFixed(1) : '0.0';
-      var medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : (idx + 1);
-      var initial = r.candidates.name ? r.candidates.name.charAt(0).toUpperCase() : '?';
-      var photo = r.candidates.photo_url ? '<img src="' + escAttr(r.candidates.photo_url) + '" onerror="this.style.display=\'none\'">' : initial;
-      
-      return '<div class="result-row ' + (idx === 0 ? 'leader' : '') + '">' +
-        '<div class="avatar-wrap ' + (r.candidates.photo_url ? '' : 'no-photo') + '">' + photo + '<span class="avatar-rank">' + medal + '</span></div>' +
-        '<div class="result-info"><div class="result-name">' + esc(r.candidates.name) + '</div><div class="result-party">' + esc(r.candidates.party) + '</div></div>' +
-        '<div class="result-votes">' + r.votes.toLocaleString() + '</div><div class="result-pct">' + pct + '%</div></div>';
-    }).join('');
-
-    sheet.innerHTML = '<div class="sheet-head"><div><div class="sheet-title">' + esc(position) + ' · ' + esc(label) + '</div><div class="sheet-sub">' + esc(centreName) + ' · ' + esc(wardName) + ' Ward</div></div><button class="sheet-close" onclick="closeSheet()"><i class="fas fa-xmark"></i></button></div>' + infoHtml + rowsHtml;
+    const res = {
+        submitted: true, 
+        submittedBy: data[0].submitted_by, 
+        submittedByName: data[0].submitted_by, 
+        submittedAt: data[0].created_at ? new Date(data[0].created_at).toLocaleString() : 'Unknown time', 
+        results: mappedResults
+    };
+    
+    renderTrackerPipResult(res, position, label, centreName, wardName);
 
   } catch (e) {
     console.error(e);
