@@ -3586,7 +3586,47 @@ async function openTrackerPip(streamCode, position) {
     sheet.innerHTML = '<div class="empty">Error loading results.</div>';
   }
 }
-
+function renderTrackerPipResult(res, position, label, centreName, wardName) {
+  var sheet = document.getElementById('sheetContent'); 
+  var total = (res.results || []).reduce(function (s, r) { return s + (Number(r.votes) || 0); }, 0);
+  
+  var infoHtml = '<div class="pip-result-info">' +
+    '<div class="row"><i class="fas fa-user-check user"></i>Submitted by <strong>' + esc(res.submittedByName || res.submittedBy || 'Unknown') + '</strong></div>' +
+    '<div class="row"><i class="fas fa-clock clock"></i>' + esc(res.submittedAt || 'Unknown time') + '</div>' +
+    '<div class="row"><i class="fas fa-lock lock"></i>Locked · ' + total.toLocaleString() + ' total votes</div>' +
+  '</div>';
+  
+  var rowsHtml = (res.results || []).map(function (c, idx) {
+    var votes = Number(c.votes) || 0; 
+    var pct = total > 0 ? (votes / total * 100).toFixed(1) : '0.0'; 
+    var isLead = idx === 0 && votes > 0; 
+    var medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : (idx + 1);
+    
+    var initial = c.candidateName ? c.candidateName.charAt(0).toUpperCase() : '?'; 
+    // We use c.photo_url because that's what we mapped in openTrackerPip
+    var photoHtml = c.photo_url ? '<img src="' + escAttr(c.photo_url) + '" alt="" loading="lazy" onerror="this.style.display=\'none\';this.parentElement.textContent=\'' + escAttr(initial) + '\'">' : initial;
+    
+    return '<div class="board-row' + (isLead ? ' leader' : '') + '" style="cursor:default;">' +
+      '<div class="avatar-wrap' + (c.photo_url ? '' : ' no-photo') + '">' + photoHtml + '<span class="avatar-rank">' + medal + '</span></div>' +
+      '<div class="board-info">' +
+        '<div class="board-name">' + esc(c.candidateName) + '</div>' +
+        '<div class="board-party">' + esc(c.party) + '</div>' +
+      '</div>' +
+      '<div style="text-align:right;">' +
+        '<div class="board-votes">' + votes.toLocaleString() + '</div>' +
+        '<div class="board-pct">' + pct + '%</div>' +
+      '</div><div></div></div>';
+  }).join('');
+  
+  sheet.innerHTML = 
+    '<div class="sheet-head">' +
+      '<div><div class="sheet-title">' + esc(position) + ' · ' + esc(label) + '</div>' +
+      '<div class="sheet-sub">' + esc(centreName) + ' · ' + esc(wardName) + ' Ward</div></div>' +
+      '<button class="sheet-close" onclick="closeSheet()"><i class="fas fa-xmark"></i></button>' +
+    '</div>' + 
+    infoHtml + 
+    '<div class="board" style="border:none;">' + rowsHtml + '</div>';
+}
 function closeSheet() {
   document.getElementById('sheetBg').classList.remove('active');
 }
