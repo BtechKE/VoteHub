@@ -3554,8 +3554,9 @@ async function openTrackerPip(streamCode, position) {
   sheet.innerHTML = '<div class="sheet-head"><div><div class="sheet-title">' + esc(position) + ' · ' + esc(label) + '</div><div class="sheet-sub">' + esc(centreName) + ' · ' + esc(wardName) + ' Ward</div></div><button class="sheet-close" onclick="closeSheet()"><i class="fas fa-xmark"></i></button></div><div class="loading-inline"><i class="fas fa-spinner"></i>Loading submission…</div>';
 
   try {
+    // THE FIX: We ONLY fetch the results. No joins needed!
     const { data, error } = await db.from('results')
-      .select('votes, submitted_by, created_at, candidates(name, party, photo_url)')
+      .select('votes, submitted_by, created_at, candidate_code')
       .eq('stream_code', streamCode).eq('position', position);
 
     if (error) throw error;
@@ -3565,16 +3566,13 @@ async function openTrackerPip(streamCode, position) {
       return;
     }
 
+    // We use the global CANDIDATES array to build the results
     const mappedResults = data.map(r => {
-        // SAFETY CHECK: If candidates object is missing for some reason
-        var cName = r.candidates ? r.candidates.name : 'Unknown';
-        var cParty = r.candidates ? r.candidates.party : '';
-        var cPhoto = r.candidates ? r.candidates.photo_url : '';
-        
+        var c = CANDIDATES.find(x => x.code === r.candidate_code) || {};
         return {
-            candidateName: cName, 
-            party: cParty, 
-            photo_url: normalizeImageUrl(cPhoto), 
+            candidateName: c.name || r.candidate_code, 
+            party: c.party || 'Unknown', 
+            photo_url: normalizeImageUrl(c.photo_url), // Normalized directly from the global array
             votes: r.votes
         };
     }).sort((a, b) => b.votes - a.votes);
@@ -3594,7 +3592,6 @@ async function openTrackerPip(streamCode, position) {
     sheet.innerHTML = '<div class="empty">Error loading results: ' + esc(e.message) + '</div>';
   }
 }
-
 function renderTrackerPipResult(res, position, label, centreName, wardName) {
   var sheet = document.getElementById('sheetContent'); 
   var total = (res.results || []).reduce(function (s, r) { return s + (Number(r.votes) || 0); }, 0);
