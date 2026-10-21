@@ -3830,10 +3830,25 @@ async function toggleAspirant(id) {
 
 
 function deleteAgent(id) {
-  thConfirm({ title: 'Delete agent?', confirmText: 'Delete', tone: 'danger' }).then(async ok => {
+  thConfirm({ 
+    title: 'Delete agent?', 
+    message: 'This will permanently delete their profile and their login access.',
+    confirmText: 'Delete', 
+    tone: 'danger' 
+  }).then(async ok => {
     if (ok) { 
-      await db.from('agents').delete().eq('id', id); 
-      toast('Agent deleted.', 'success');
+      // 1. Find the agent to get their auth_user_id
+      var agent = AGENTS.find(x => x.id === id);
+      if (!agent) return toast('Agent not found.', 'error');
+
+      // 2. Call the RPC to delete the Auth user (which cascades to the profile)
+      const { data, error } = await db.rpc('admin_delete_user', { p_auth_id: agent.auth_user_id });
+      
+      if (error || !data.success) {
+        return toast('Failed to delete: ' + (error?.message || 'Unknown error'), 'error');
+      }
+      
+      toast('Agent completely deleted.', 'success');
       loadAllData(); 
     }
   });
@@ -3842,13 +3857,23 @@ function deleteAgent(id) {
 function deleteAspirant(id) {
   thConfirm({ 
     title: 'Delete aspirant?', 
-    message: 'Their dashboard access will be revoked immediately.',
+    message: 'This will permanently delete their profile and their login access.',
     confirmText: 'Delete', 
     tone: 'danger' 
   }).then(async ok => {
     if (ok) { 
-      await db.from('aspirants').delete().eq('id', id); 
-      toast('Aspirant deleted.', 'success');
+      // 1. Find the aspirant to get their auth_user_id
+      var aspirant = ASPIRANTS.find(x => x.id === id);
+      if (!aspirant) return toast('Aspirant not found.', 'error');
+
+      // 2. Call the RPC to delete the Auth user
+      const { data, error } = await db.rpc('admin_delete_user', { p_auth_id: aspirant.auth_user_id });
+      
+      if (error || !data.success) {
+        return toast('Failed to delete: ' + (error?.message || 'Unknown error'), 'error');
+      }
+      
+      toast('Aspirant completely deleted.', 'success');
       loadAllData(); 
     }
   });
