@@ -527,6 +527,7 @@ var currentCandidates = [];
 var draftSaveTimer = null;
 var refreshTimer = null;
 var STREAM_MAX = 700;
+var isPoppingState = false;
 
 const POSITIONS = ['President', 'Governor', 'Senator', 'MP', 'Women Rep', 'MCA'];
 const POSITION_ICONS = {
@@ -980,6 +981,11 @@ async function goToReadonly(streamCode, position) {
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id));
   window.scrollTo(0, 0);
+  
+  // Push a new state to the browser history so the back button works
+  if (!isPoppingState) {
+    history.pushState({ screen: id }, '', '#' + id);
+  }
 }
 
 function startAutoRefresh() {
@@ -1102,7 +1108,27 @@ function normalizeImageUrl(raw) {
   return '';
 }
   function escAttr(s) { return esc(s); }
-// Start
+// ================================================================
+//  HANDLE PHONE BACK BUTTON (History API)
+// ================================================================
+window.addEventListener('popstate', function(event) {
+  if (event.state && event.state.screen) {
+    isPoppingState = true; // Tell showScreen NOT to push another history state
+    
+    if (event.state.screen === 'screenStreams') {
+      goToStreams();
+    } else if (event.state.screen === 'screenPositions') {
+      goToPositions(currentStream ? currentStream.code : null);
+    } else if (event.state.screen === 'screenEntry') {
+      goToEntry(currentStream ? currentStream.code : null, currentPosition);
+    } else if (event.state.screen === 'screenReadonly') {
+      goToReadonly(currentStream ? currentStream.code : null, currentPosition);
+    }
+    
+    isPoppingState = false; // Reset the flag
+  }
+});
+  // Start
 init();
   
 </script>
