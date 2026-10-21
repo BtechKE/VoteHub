@@ -307,6 +307,63 @@ body {
 .entry-total {
   border-bottom: 1px dashed rgba(0, 0, 0, 0.15) !important;
       }
+        /* ================================================================
+       PREMIUM LOADING OVERLAY & SUCCESS ANIMATION
+    ================================================================ */
+    .app-loading-overlay {
+      position: fixed; inset: 0; z-index: 9999;
+      background: rgba(244, 247, 246, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+    }
+    .app-loading-overlay.active { opacity: 1; pointer-events: auto; }
+    
+    .app-spinner {
+      width: 40px; height: 40px;
+      border: 3px solid rgba(21, 145, 220, 0.2);
+      border-top-color: #1591DC;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 16px;
+    }
+    .app-loading-text { font-size: 14px; font-weight: 600; color: #0F172A; }
+
+    /* Success Modal */
+    .success-overlay {
+      position: fixed; inset: 0; z-index: 10000;
+      background: rgba(15, 23, 42, 0.4);
+      backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+    }
+    .success-overlay.active { opacity: 1; pointer-events: auto; }
+    
+    .success-card {
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(255, 255, 255, 1);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      border-radius: 24px; padding: 40px 32px; text-align: center;
+      transform: scale(0.9) translateY(20px); transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .success-overlay.active .success-card { transform: scale(1) translateY(0); }
+
+    .success-svg { width: 80px; height: 80px; margin-bottom: 20px; }
+    .success-circle {
+      stroke-dasharray: 166; stroke-dashoffset: 166;
+      stroke-width: 4; stroke-miterlimit: 10; stroke: #7EAE5C; fill: none;
+      animation: stroke 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+    }
+    .success-check {
+      transform-origin: 50% 50%; stroke-dasharray: 48; stroke-dashoffset: 48;
+      stroke-width: 5; stroke-linecap: round; stroke: #7EAE5C; fill: none;
+      animation: stroke 0.3s cubic-bezier(0.65, 0, 0.45, 1) 0.6s forwards;
+    }
+    @keyframes stroke { 100% { stroke-dashoffset: 0; } }
+    
+    .success-title { font-size: 20px; font-weight: 800; color: #0F172A; margin-bottom: 6px; }
+    .success-sub { font-size: 14px; color: #6B7C93; font-weight: 500; }
   </style>
 </head>
 <body>
@@ -431,6 +488,23 @@ body {
 
 <!-- TOASTS -->
 <div class="toasts" id="toasts"></div>
+  <!-- APP LOADING OVERLAY -->
+<div class="app-loading-overlay" id="appLoader">
+  <div class="app-spinner"></div>
+  <div class="app-loading-text" id="appLoaderText">Securely connecting...</div>
+</div>
+
+<!-- ANIMATED SUCCESS MODAL -->
+<div class="success-overlay" id="successOverlay">
+  <div class="success-card">
+    <svg class="success-svg" viewBox="0 0 100 100">
+      <circle class="success-circle" cx="50" cy="50" r="40" />
+      <path class="success-check" d="M30 50 L45 65 L70 35" />
+    </svg>
+    <div class="success-title" id="successTitle">Submission Locked!</div>
+    <div class="success-sub" id="successSub">Redirecting to the next position...</div>
+  </div>
+</div>
 
 <script>
 // ================================================================
@@ -493,27 +567,36 @@ async function init() {
 //  DATA LOADING (SUPABASE)
 // ================================================================
 async function loadStreams(silent) {
-  if (!silent) document.getElementById('streamList').innerHTML = '<div class="loading"><i class="fas fa-spinner"></i>Loading your streams…</div>';
+  if (!silent) {
+    document.getElementById('appLoader').classList.add('active');
+    document.getElementById('appLoaderText').textContent = "Loading your assigned streams...";
+  }
   
   try {
-    // 1. Fetch streams
-    const { data: streamsData } = await db.from('streams')
+    // 1. Fetch streams assigned to this agent
+    const { data: streamsData, error: streamErr } = await db.from('streams')
         .select('code, stream_number, centre_id, ward_id, centres(name)')
         .in('code', USER.assigned_streams || []);
     
+    if (streamErr) throw streamErr;
+    
     // 2. Fetch existing submissions for these streams
-    const { data: existingResults } = await db.from('results')
+    const { data: existingResults, error: resErr } = await db.from('results')
         .select('stream_code, position')
         .in('stream_code', USER.assigned_streams || []);
 
-    STREAMS = (streamsData || []).map(s => ({
-  code: s.code,
-  centreId: s.centre_id,
-  centreName: s.centres.name,
-  streamNumber: s.stream_number,
-  wardId: s.ward_id  // <--- ADD THIS LINE
-})).sort((a,b) => a.streamNumber - b.streamNumber);
+    if (resErr) throw resErr;
 
+    // 3. Map the data to our local STREAMS array
+    STREAMS = (streamsData || []).map(s => ({
+      code: s.code,
+      centreId: s.centre_id,
+      centreName: s.centres ? s.centres.name : 'Unknown Centre',
+      streamNumber: s.stream_number,
+      wardId: s.ward_id // Critical for MCA candidates!
+    })).sort((a,b) => a.streamNumber - b.streamNumber);
+
+    // 4. Build the STATUSES object
     STATUSES = {};
     STREAMS.forEach(st => {
       STATUSES[st.code] = {};
@@ -523,10 +606,17 @@ async function loadStreams(silent) {
       });
     });
 
+    // 5. Render the UI
     renderStreams();
+
   } catch (e) {
-    console.error(e);
+    console.error("Load Streams Error:", e);
     if (!silent) toast('Connection error.', 'error');
+  } finally {
+    // 6. ALWAYS hide the loader when done (success or error)
+    if (!silent) {
+      document.getElementById('appLoader').classList.remove('active');
+    }
   }
 }
 
@@ -767,10 +857,9 @@ async function submitNow() {
   
   var streamCode = currentStream.code;
   var position = currentPosition;
-  var payload = collectVotes(); // Returns array of { candidateCode, votes }
+  var payload = collectVotes();
 
   try {
-    // Call the secure Postgres function instead of direct insert
     const { data, error } = await db.rpc('submit_election_results', {
       p_stream_code: streamCode,
       p_position: position,
@@ -785,11 +874,28 @@ async function submitNow() {
       return;
     }
 
-    btn.disabled = false; btn.innerHTML = '<i class="fas fa-lock"></i> Submit &amp; Lock';
+    // --- SUCCESS ANIMATION SEQUENCE ---
+    btn.disabled = false; 
+    btn.innerHTML = '<i class="fas fa-lock"></i> Submit &amp; Lock';
+    
     clearDraft(streamCode, position);
     STATUSES[streamCode][position] = { status: 'submitted' };
-    toast('✅ ' + position + ' submitted.', 'success');
-    advanceAfterSubmit(streamCode, position);
+
+    // Show the success modal
+    document.getElementById('successTitle').textContent = position + ' Submitted!';
+    document.getElementById('successSub').textContent = 'Data securely locked. Moving to next...';
+    document.getElementById('successOverlay').classList.add('active');
+
+    // Wait for the animation to finish (2 seconds) before advancing
+    setTimeout(() => {
+      document.getElementById('successOverlay').classList.remove('active');
+      
+      // Give the modal a moment to fade out before moving to the next screen
+      setTimeout(() => {
+        advanceAfterSubmit(streamCode, position);
+      }, 300);
+    }, 2000);
+
   } catch (e) {
     console.error(e);
     btn.disabled = false; btn.innerHTML = '<i class="fas fa-lock"></i> Submit &amp; Lock';
